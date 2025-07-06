@@ -789,6 +789,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate phone linking code endpoint
+  app.post('/api/whatsapp/generate-link-code', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { phoneNumber, displayName } = req.body;
+
+      if (!phoneNumber) {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+
+      // Generate a unique 6-8 character alphanumeric code
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      
+      // Store the pending linking request in memory (you could use Redis in production)
+      const linkingRequest = {
+        code,
+        userId,
+        phoneNumber,
+        displayName,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes expiry
+      };
+
+      // Store in a simple in-memory cache (replace with Redis in production)
+      global.linkingCodes = global.linkingCodes || new Map();
+      global.linkingCodes.set(code, linkingRequest);
+
+      // Clean up expired codes
+      setTimeout(() => {
+        global.linkingCodes?.delete(code);
+      }, 5 * 60 * 1000);
+
+      res.json({
+        code,
+        expiresIn: 300, // 5 minutes in seconds
+        message: "Linking code generated successfully"
+      });
+    } catch (error: any) {
+      console.error("Error generating linking code:", error);
+      res.status(500).json({ message: error.message || "Failed to generate linking code" });
+    }
+  });
+
+  // Verify phone linking code endpoint
+  app.post('/api/whatsapp/verify-link-code', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { code, phoneNumber, displayName } = req.body;
+
+      if (!code || !phoneNumber) {
+        return res.status(400).json({ message: "Code and phone number are required" });
+      }
+
+      // Check if code exists and is valid
+      global.linkingCodes = global.linkingCodes || new Map();
+      const linkingRequest = global.linkingCodes.get(code.toUpperCase());
+
+      if (!linkingRequest) {
+        return res.status(400).json({ message: "Invalid or expired linking code" });
+      }
+
+      if (linkingRequest.expiresAt < new Date()) {
+        global.linkingCodes.delete(code.toUpperCase());
+        return res.status(400).json({ message: "Linking code has expired" });
+      }
+
+      if (linkingRequest.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized access to linking code" });
+      }
+
+      // Create WhatsApp number entry
+      const whatsappNumber = await storage.createWhatsappNumber({
+        userId,
+        phoneNumber: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`,
+        displayName: displayName || phoneNumber,
+        accountType: 'personal',
+        status: 'active',
+        dailyMessageLimit: 1000,
+        messagesSentToday: 0,
+        successRate: '100.00',
+        sessionData: { 
+          method: 'phone_code_link',
+          linkingCode: code,
+          connectedAt: new Date().toISOString()
+        }
+      });
+
+      // Clean up the used code
+      global.linkingCodes.delete(code.toUpperCase());
+
+      res.json({
+        message: "WhatsApp account linked successfully",
+        number: whatsappNumber
+      });
+    } catch (error: any) {
+      console.error("Error verifying linking code:", error);
+      res.status(500).json({ message: error.message || "Failed to verify linking code" });
+    }
+  });
+
   app.post('/api/ai/sentiment-analysis', isAuthenticated, async (req: any, res) => {
     try {
       const { message, provider, model, apiKey } = req.body;
