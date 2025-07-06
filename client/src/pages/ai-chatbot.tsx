@@ -61,10 +61,7 @@ export default function AIChatbot() {
   // Update settings mutation
   const settingsMutation = useMutation({
     mutationFn: async (data: ChatbotSettings) => {
-      return await apiRequest('/api/chatbot/settings', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('/api/chatbot/settings', 'POST', data);
     },
     onSuccess: () => {
       toast({
@@ -85,12 +82,9 @@ export default function AIChatbot() {
   // Test response mutation
   const testMutation = useMutation({
     mutationFn: async (message: string) => {
-      return await apiRequest('/api/chatbot/generate-response', {
-        method: 'POST',
-        body: JSON.stringify({ message }),
-      });
+      return await apiRequest('/api/chatbot/generate-response', 'POST', { message });
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       setTestResponse(data.message);
     },
     onError: (error) => {
@@ -105,12 +99,9 @@ export default function AIChatbot() {
   // Sentiment analysis mutation
   const sentimentMutation = useMutation({
     mutationFn: async (message: string) => {
-      return await apiRequest('/api/chatbot/analyze-sentiment', {
-        method: 'POST',
-        body: JSON.stringify({ message }),
-      });
+      return await apiRequest('/api/chatbot/analyze-sentiment', 'POST', { message });
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       setSentiment(data);
     },
     onError: (error) => {
