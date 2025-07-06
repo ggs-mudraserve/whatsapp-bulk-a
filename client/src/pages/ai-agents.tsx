@@ -33,95 +33,45 @@ import {
   Sparkles
 } from "lucide-react";
 
-// Default AI agents matching the chat interface
-const DEFAULT_AGENTS = [
-  {
-    id: 'sales-expert',
-    name: 'Sales Expert',
-    role: 'Sales Specialist',
-    icon: Users,
-    color: 'bg-blue-500',
-    prompt: `You are a Sales Expert specializing in WhatsApp marketing and customer acquisition. Your role is to:
-- Convert leads into customers through persuasive messaging
-- Create compelling sales funnels and sequences
-- Optimize conversion rates and close deals
-- Handle objections professionally and confidently
-- Build trust and rapport with prospects quickly
-- Upsell and cross-sell products/services strategically
-Always be results-driven, confident, and focus on creating win-win scenarios for both business and customers.`,
-    isDefault: true
+// Available AI providers and their models
+const AI_PROVIDERS = {
+  openai: {
+    name: 'OpenAI',
+    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
+    requiresApiKey: true
   },
-  {
-    id: 'customer-support',
-    name: 'Customer Support',
-    role: 'Support Agent',
-    icon: MessageSquare,
-    color: 'bg-green-500',
-    prompt: `You are a Customer Support specialist focused on providing exceptional service through WhatsApp. Your responsibilities include:
-- Resolving customer issues quickly and effectively
-- Providing clear, helpful, and empathetic responses
-- Escalating complex problems to appropriate departments
-- Following up on customer satisfaction
-- Managing refunds, exchanges, and technical support
-- Maintaining a positive brand reputation
-Always be patient, understanding, and solution-oriented while maintaining professionalism.`,
-    isDefault: true
+  anthropic: {
+    name: 'Anthropic Claude',
+    models: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
+    requiresApiKey: true
   },
-  {
-    id: 'marketing-guru',
-    name: 'Marketing Guru',
-    role: 'Marketing Strategist',
-    icon: Lightbulb,
-    color: 'bg-purple-500',
-    prompt: `You are a Marketing Guru specialized in WhatsApp marketing campaigns and brand promotion. Your expertise covers:
-- Developing creative marketing strategies and campaigns
-- Creating engaging content for different customer segments
-- Planning promotional events and product launches
-- Building brand awareness and customer loyalty
-- Analyzing market trends and competitor strategies
-- Optimizing marketing ROI and campaign performance
-Always think creatively, stay current with trends, and focus on building lasting customer relationships.`,
-    isDefault: true
+  gemini: {
+    name: 'Google Gemini',
+    models: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
+    requiresApiKey: true
   },
-  {
-    id: 'tech-advisor',
-    name: 'Tech Advisor',
-    role: 'Technical Expert',
-    icon: Wrench,
-    color: 'bg-orange-500',
-    prompt: `You are a Tech Advisor providing technical support and guidance for WhatsApp marketing tools and integrations. You help with:
-- Troubleshooting technical issues and bugs
-- Explaining complex technical concepts simply
-- Recommending best practices for tool usage
-- Integration support and API guidance
-- Performance optimization and efficiency tips
-- Security and privacy compliance advice
-Always provide clear, accurate, and actionable technical solutions while being patient with non-technical users.`,
-    isDefault: true
+  cohere: {
+    name: 'Cohere',
+    models: ['command-r-plus', 'command-r', 'command'],
+    requiresApiKey: true
   },
-  {
-    id: 'business-consultant',
-    name: 'Business Consultant',
-    role: 'Strategic Advisor',
-    icon: Briefcase,
-    color: 'bg-red-500',
-    prompt: `You are a Business Consultant focused on strategic planning and business growth through WhatsApp marketing. You provide:
-- Strategic business advice and planning
-- Market analysis and competitive insights
-- Business process optimization recommendations
-- Growth strategies and scaling advice
-- Financial planning and ROI analysis
-- Risk assessment and mitigation strategies
-Always think strategically, consider long-term implications, and provide data-driven insights for sustainable business growth.`,
-    isDefault: true
+  mistral: {
+    name: 'Mistral AI',
+    models: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest'],
+    requiresApiKey: true
   }
-];
+};
 
 interface Agent {
   id: string;
   name: string;
   role: string;
   prompt: string;
+  aiProvider: string;
+  aiModel: string;
+  apiKey?: string;
+  temperature?: number;
+  maxTokens?: number;
   icon?: any;
   color?: string;
   isDefault?: boolean;
@@ -203,11 +153,11 @@ export default function AIAgents() {
         body: JSON.stringify({
           message,
           customInstructions: agent.prompt,
-          aiProvider: settings?.aiProvider || 'openai',
-          aiModel: settings?.aiModel || 'gpt-4o',
-          customApiKey: settings?.customApiKey,
-          temperature: settings?.temperature || 0.7,
-          maxTokens: settings?.maxTokens || 500
+          aiProvider: agent.aiProvider || 'openai',
+          aiModel: agent.aiModel || 'gpt-4o',
+          customApiKey: agent.apiKey,
+          temperature: agent.temperature || 0.7,
+          maxTokens: agent.maxTokens || 500
         })
       });
     },
@@ -246,7 +196,7 @@ export default function AIAgents() {
     return null;
   }
 
-  const allAgents = [...DEFAULT_AGENTS, ...customAgents];
+  const allAgents = [...customAgents];
 
   const handleCreateAgent = () => {
     setEditingAgent({
@@ -254,6 +204,11 @@ export default function AIAgents() {
       name: '',
       role: '',
       prompt: '',
+      aiProvider: 'openai',
+      aiModel: 'gpt-4o',
+      apiKey: '',
+      temperature: 0.7,
+      maxTokens: 500,
       color: 'bg-gray-500',
       isDefault: false
     });
@@ -263,10 +218,10 @@ export default function AIAgents() {
   const handleSaveAgent = () => {
     if (!editingAgent) return;
     
-    if (!editingAgent.name.trim() || !editingAgent.role.trim() || !editingAgent.prompt.trim()) {
+    if (!editingAgent.name.trim() || !editingAgent.role.trim() || !editingAgent.prompt.trim() || !editingAgent.aiProvider || !editingAgent.aiModel) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields.",
+        description: "Please fill in all required fields including AI provider and model.",
         variant: "destructive",
       });
       return;
@@ -435,6 +390,84 @@ export default function AIAgents() {
                         rows={6}
                       />
                     </div>
+                    
+                    {/* AI Configuration Section */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>AI Provider *</Label>
+                        <Select 
+                          value={editingAgent.aiProvider} 
+                          onValueChange={(value) => {
+                            setEditingAgent(prev => prev ? {
+                              ...prev, 
+                              aiProvider: value,
+                              aiModel: AI_PROVIDERS[value as keyof typeof AI_PROVIDERS]?.models[0] || 'gpt-4o'
+                            } : null);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(AI_PROVIDERS).map(([key, provider]) => (
+                              <SelectItem key={key} value={key}>{provider.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>AI Model *</Label>
+                        <Select 
+                          value={editingAgent.aiModel} 
+                          onValueChange={(value) => setEditingAgent(prev => prev ? {...prev, aiModel: value} : null)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {editingAgent.aiProvider && AI_PROVIDERS[editingAgent.aiProvider as keyof typeof AI_PROVIDERS]?.models.map((model) => (
+                              <SelectItem key={model} value={model}>{model}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>API Key (Optional)</Label>
+                      <Input
+                        type="password"
+                        value={editingAgent.apiKey || ''}
+                        onChange={(e) => setEditingAgent(prev => prev ? {...prev, apiKey: e.target.value} : null)}
+                        placeholder="Enter your custom API key (optional)"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Temperature: {editingAgent.temperature || 0.7}</Label>
+                        <Slider
+                          value={[editingAgent.temperature || 0.7]}
+                          onValueChange={([value]) => setEditingAgent(prev => prev ? {...prev, temperature: value} : null)}
+                          max={1}
+                          min={0}
+                          step={0.1}
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <Label>Max Tokens: {editingAgent.maxTokens || 500}</Label>
+                        <Slider
+                          value={[editingAgent.maxTokens || 500]}
+                          onValueChange={([value]) => setEditingAgent(prev => prev ? {...prev, maxTokens: value} : null)}
+                          max={2000}
+                          min={100}
+                          step={50}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+
                     <div>
                       <Label>Color Theme</Label>
                       <Select 

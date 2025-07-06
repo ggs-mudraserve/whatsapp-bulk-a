@@ -126,6 +126,7 @@ class SimpleWhatsAppService {
           level: 'error',
           child: () => ({ 
             level: 'error',
+            child: () => ({} as any),
             info: () => {},
             warn: () => {},
             error: console.error,
