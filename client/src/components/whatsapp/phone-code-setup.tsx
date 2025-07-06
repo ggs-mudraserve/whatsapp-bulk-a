@@ -59,10 +59,7 @@ export default function PhoneCodeSetup() {
   // Generate linking code mutation
   const generateCodeMutation = useMutation({
     mutationFn: async (data: PhoneNumberFormData) => {
-      return await apiRequest('/api/whatsapp/generate-link-code', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('POST', '/api/whatsapp/generate-link-code', data);
     },
     onSuccess: (response: any) => {
       setLinkingCode(response.code);
@@ -110,13 +107,10 @@ export default function PhoneCodeSetup() {
     mutationFn: async (data: LinkingCodeFormData) => {
       if (!pendingData) throw new Error("No pending data");
       
-      return await apiRequest('/api/whatsapp/verify-link-code', {
-        method: 'POST',
-        body: JSON.stringify({
-          code: data.code,
-          phoneNumber: pendingData.phoneNumber,
-          displayName: pendingData.displayName,
-        }),
+      return await apiRequest('POST', '/api/whatsapp/verify-link-code', {
+        code: data.code,
+        phoneNumber: pendingData.phoneNumber,
+        displayName: pendingData.displayName,
       });
     },
     onSuccess: () => {
