@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { QrCode, RefreshCw, Smartphone, CheckCircle, X } from "lucide-react";
 
 export default function RealQRSetup() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const wsRef = useRef<WebSocket | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'qr_ready' | 'connected'>('disconnected');
   const [qrCodeUrl, setQrCodeUrl] = useState("");
@@ -31,7 +33,7 @@ export default function RealQRSetup() {
       ws.send(JSON.stringify({
         type: 'start_session',
         sessionId,
-        userId: 'current_user' // This will be handled by the auth middleware
+        userId: user?.id || 'unknown' // Use actual user ID
       }));
     };
 
