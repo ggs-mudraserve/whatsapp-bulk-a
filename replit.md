@@ -139,3 +139,6 @@ Changelog:
 - July 06, 2025. Implemented inbox integration with real-time WhatsApp chat synchronization when QR code is scanned
 - July 06, 2025. Added multi-agent AI chatbot system in inbox with 5 specialized agents (Sales Expert, Customer Support, Marketing Guru, Tech Advisor, Business Consultant)
 - July 06, 2025. Created inbox chat interface with AI on/off toggle and agent selection dropdown with visual indicators
+- July 06, 2025. Enhanced AI section with custom agent creation system via Agent Manager component
+- July 06, 2025. Added direct WhatsApp connection API endpoint for phone number linking without QR codes
+- July 06, 2025. Created comprehensive multi-agent management interface with localStorage-based custom agent storage

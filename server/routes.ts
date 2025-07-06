@@ -753,6 +753,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Direct WhatsApp connection endpoint
+  app.post('/api/whatsapp/connect-direct', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { phoneNumber, method } = req.body;
+
+      if (!phoneNumber) {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+
+      // Create a WhatsApp number entry for direct connection
+      const whatsappNumber = await storage.createWhatsappNumber({
+        userId,
+        phoneNumber: phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`,
+        displayName: phoneNumber,
+        accountType: 'personal',
+        status: 'active', // Direct connections are considered active
+        dailyMessageLimit: 1000,
+        messagesSentToday: 0,
+        successRate: '100.00',
+        sessionData: { 
+          method: 'direct_link',
+          connectedAt: new Date().toISOString()
+        }
+      });
+
+      res.json({
+        message: "WhatsApp number connected successfully",
+        number: whatsappNumber
+      });
+    } catch (error: any) {
+      console.error("Error connecting WhatsApp number:", error);
+      res.status(500).json({ message: error.message || "Failed to connect WhatsApp number" });
+    }
+  });
+
   app.post('/api/ai/sentiment-analysis', isAuthenticated, async (req: any, res) => {
     try {
       const { message, provider, model, apiKey } = req.body;

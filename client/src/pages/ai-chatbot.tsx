@@ -7,10 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import AgentManager from "@/components/ai/agent-manager";
 import { 
   Bot, 
   Brain, 
@@ -21,7 +23,8 @@ import {
   Clock,
   Target,
   TestTube,
-  Sparkles
+  Sparkles,
+  Users
 } from "lucide-react";
 
 interface ChatbotSettings {

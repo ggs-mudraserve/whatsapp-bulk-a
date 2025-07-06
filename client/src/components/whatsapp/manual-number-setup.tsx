@@ -49,58 +49,19 @@ export default function ManualNumberSetup() {
     defaultValues: { otp: "" },
   });
 
-  const sendOTPMutation = useMutation({
+  const addNumberMutation = useMutation({
     mutationFn: async (data: ManualNumberFormData) => {
-      const response = await apiRequest("POST", "/api/whatsapp/send-otp", {
-        phoneNumber: data.phoneNumber,
-      });
-      return response;
-    },
-    onSuccess: () => {
-      setStep('otp');
-      toast({
-        title: "OTP Sent",
-        description: "Please check your WhatsApp for the verification code.",
-      });
-    },
-    onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: "Failed to send OTP. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const verifyOTPMutation = useMutation({
-    mutationFn: async (otpData: OTPFormData) => {
-      if (!pendingData) throw new Error("No pending data");
-      
-      await apiRequest("POST", "/api/whatsapp/verify-otp", {
-        phoneNumber: pendingData.phoneNumber,
-        otp: otpData.otp,
-        displayName: pendingData.displayName,
-        accountType: pendingData.accountType,
-        dailyMessageLimit: pendingData.dailyMessageLimit,
+      return await apiRequest('/api/whatsapp/connect-direct', {
+        method: 'POST',
+        body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
       setStep('success');
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp-numbers"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/whatsapp/numbers'] });
       toast({
-        title: "Number Added Successfully",
-        description: "Your WhatsApp number has been verified and added.",
+        title: "Number Connected",
+        description: "WhatsApp number connected successfully via direct method",
       });
     },
     onError: (error) => {
@@ -117,7 +78,7 @@ export default function ManualNumberSetup() {
       }
       toast({
         title: "Error",
-        description: "Invalid OTP. Please try again.",
+        description: "Failed to connect WhatsApp number",
         variant: "destructive",
       });
     },
@@ -125,18 +86,13 @@ export default function ManualNumberSetup() {
 
   const onSubmit = (data: ManualNumberFormData) => {
     setPendingData(data);
-    sendOTPMutation.mutate(data);
-  };
-
-  const onOTPSubmit = (data: OTPFormData) => {
-    verifyOTPMutation.mutate(data);
+    addNumberMutation.mutate(data);
   };
 
   const resetForm = () => {
     setStep('form');
     setPendingData(null);
     form.reset();
-    otpForm.reset();
     setIsOpen(false);
   };
 
