@@ -17,6 +17,7 @@ interface WhatsAppSession {
 class WhatsAppService {
   private sessions: Map<string, WhatsAppSession> = new Map();
   private wss?: WebSocketServer;
+  private lastAttempts: Map<string, number> = new Map();
 
   async initializeWebSocket(httpServer: Server) {
     this.wss = new WebSocketServer({ 
@@ -77,24 +78,34 @@ class WhatsAppService {
         return;
       }
       
-      // Check for recent failures (rate limiting protection)
-      const recentFailures = Array.from(this.sessions.values()).filter(
-        s => s.userId === userId && s.status === 'disconnected' 
-      );
-      
-      if (recentFailures.length > 0) {
-        // Clear old session data to force fresh connection
-        const authPath = `./auth_info_${sessionId}`;
-        try {
-          await import('fs').then(fs => {
-            if (fs.existsSync(authPath)) {
-              fs.rmSync(authPath, { recursive: true, force: true });
-            }
-          });
-        } catch (error) {
-          console.log('Auth cleanup not needed:', error.message);
+      // Clear old session data to force fresh connection every time
+      const authPath = `./auth_info_${sessionId}`;
+      try {
+        const fs = await import('fs');
+        if (fs.existsSync(authPath)) {
+          fs.rmSync(authPath, { recursive: true, force: true });
+          console.log(`Cleared old auth data for session ${sessionId}`);
         }
+      } catch (error) {
+        console.log('Auth cleanup not needed:', error);
       }
+      
+      // Check for rate limiting (prevent too many attempts)
+      const now = Date.now();
+      const lastAttempt = this.getLastAttemptTime(userId);
+      const timeSinceLastAttempt = now - lastAttempt;
+      
+      if (timeSinceLastAttempt < 60000) { // 1 minute cooldown
+        const waitTime = Math.ceil((60000 - timeSinceLastAttempt) / 1000);
+        ws.send(JSON.stringify({
+          type: 'error',
+          sessionId,
+          message: `Please wait ${waitTime} seconds before trying again to avoid rate limiting.`
+        }));
+        return;
+      }
+      
+      this.setLastAttemptTime(userId, now);
       
       // Create session entry
       const session: WhatsAppSession = {
@@ -111,13 +122,16 @@ class WhatsAppService {
       // Set up auth state (stores session data)
       const { state, saveCreds } = await useMultiFileAuthState(`./auth_info_${sessionId}`);
 
-      // Create WhatsApp socket
+      // Create WhatsApp socket with proper configuration
       const sock = makeWASocket({
         version,
         auth: state,
         printQRInTerminal: false, // We'll handle QR ourselves
-        browser: ['WhatsApp Marketing', 'Desktop', '1.0.0'],
+        browser: ['Ubuntu', 'Chrome', '20.0.04'], // Use more common browser info
         generateHighQualityLinkPreview: true,
+        markOnlineOnConnect: false,
+        syncFullHistory: false,
+        defaultQueryTimeoutMs: 60000,
       });
 
       session.socket = sock;
@@ -318,6 +332,14 @@ class WhatsAppService {
     } else {
       throw new Error('WhatsApp session not connected');
     }
+  }
+
+  private getLastAttemptTime(userId: string): number {
+    return this.lastAttempts.get(userId) || 0;
+  }
+
+  private setLastAttemptTime(userId: string, time: number) {
+    this.lastAttempts.set(userId, time);
   }
 }
 
