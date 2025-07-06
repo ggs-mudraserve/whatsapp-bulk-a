@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { whatsappService } from "./whatsapp";
+import { chatbotService } from "./openai";
 import { 
   insertContactSchema, 
   insertTemplateSchema, 
@@ -10,7 +11,8 @@ import {
   insertAntiBlockingSettingsSchema,
   insertWhatsappNumberSchema,
   insertConversationSchema,
-  insertMessageSchema
+  insertMessageSchema,
+  insertChatbotSettingsSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -593,6 +595,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error connecting Facebook API:', error);
       res.status(500).json({ message: 'Failed to connect WhatsApp Business API' });
+    }
+  });
+
+  // Chatbot settings routes
+  app.get('/api/chatbot/settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.getChatbotSettings(userId);
+      res.json(settings || { enabled: false });
+    } catch (error) {
+      console.error("Error fetching chatbot settings:", error);
+      res.status(500).json({ message: "Failed to fetch chatbot settings" });
+    }
+  });
+
+  app.post('/api/chatbot/settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validatedData = insertChatbotSettingsSchema.parse(req.body);
+      
+      const settings = await storage.upsertChatbotSettings({
+        ...validatedData,
+        userId
+      });
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating chatbot settings:", error);
+      res.status(500).json({ message: "Failed to update chatbot settings" });
+    }
+  });
+
+  // AI response generation
+  app.post('/api/chatbot/generate-response', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { message, conversationId } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      // Get chatbot settings
+      const settings = await storage.getChatbotSettings(userId);
+      if (!settings?.enabled) {
+        return res.status(400).json({ message: "Chatbot is not enabled" });
+      }
+
+      // Get conversation context if provided
+      let context = {
+        businessName: settings.businessName || undefined,
+        customInstructions: settings.customInstructions || undefined,
+        previousMessages: [] as string[]
+      };
+
+      if (conversationId) {
+        const messages = await storage.getMessages(conversationId);
+        context.previousMessages = messages.slice(-5).map(m => 
+          `${m.direction === 'incoming' ? 'Customer' : 'Bot'}: ${m.content}`
+        );
+      }
+
+      const response = await chatbotService.generateResponse(message, context);
+      res.json(response);
+    } catch (error) {
+      console.error("Error generating chatbot response:", error);
+      res.status(500).json({ message: "Failed to generate response" });
+    }
+  });
+
+  // Sentiment analysis
+  app.post('/api/chatbot/analyze-sentiment', isAuthenticated, async (req: any, res) => {
+    try {
+      const { message } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const analysis = await chatbotService.analyzeSentiment(message);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing sentiment:", error);
+      res.status(500).json({ message: "Failed to analyze sentiment" });
+    }
+  });
+
+  // Template variations
+  app.post('/api/chatbot/template-variations', isAuthenticated, async (req: any, res) => {
+    try {
+      const { template, count = 3 } = req.body;
+      
+      if (!template) {
+        return res.status(400).json({ message: "Template is required" });
+      }
+
+      const variations = await chatbotService.generateTemplateVariations(template, count);
+      res.json({ variations });
+    } catch (error) {
+      console.error("Error generating template variations:", error);
+      res.status(500).json({ message: "Failed to generate template variations" });
     }
   });
 

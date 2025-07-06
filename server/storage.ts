@@ -23,6 +23,9 @@ import {
   type InsertMessage,
   type AntiBlockingSettings,
   type InsertAntiBlockingSettings,
+  chatbotSettings,
+  type ChatbotSettings,
+  type InsertChatbotSettings,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, sql, inArray } from "drizzle-orm";
@@ -69,6 +72,10 @@ export interface IStorage {
   // Anti-blocking settings
   getAntiBlockingSettings(userId: string): Promise<AntiBlockingSettings | undefined>;
   upsertAntiBlockingSettings(settings: InsertAntiBlockingSettings & { userId: string }): Promise<AntiBlockingSettings>;
+  
+  // Chatbot settings
+  getChatbotSettings(userId: string): Promise<ChatbotSettings | undefined>;
+  upsertChatbotSettings(settings: InsertChatbotSettings & { userId: string }): Promise<ChatbotSettings>;
   
   // Dashboard stats
   getDashboardStats(userId: string): Promise<{
@@ -370,6 +377,26 @@ export class DatabaseStorage implements IStorage {
       taggedContacts: Number(contactsData.taggedContacts) || 0,
       blockedContacts: Number(contactsData.blockedContacts) || 0,
     };
+  }
+
+  async getChatbotSettings(userId: string): Promise<ChatbotSettings | undefined> {
+    const [settings] = await db.select().from(chatbotSettings).where(eq(chatbotSettings.userId, userId));
+    return settings;
+  }
+
+  async upsertChatbotSettings(settingsData: InsertChatbotSettings & { userId: string }): Promise<ChatbotSettings> {
+    const [settings] = await db
+      .insert(chatbotSettings)
+      .values(settingsData)
+      .onConflictDoUpdate({
+        target: chatbotSettings.userId,
+        set: {
+          ...settingsData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return settings;
   }
 }
 

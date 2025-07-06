@@ -157,6 +157,21 @@ export const antiBlockingSettings = pgTable("anti_blocking_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const chatbotSettings = pgTable("chatbot_settings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  enabled: boolean("enabled").default(false),
+  businessName: varchar("business_name"),
+  customInstructions: text("custom_instructions"),
+  autoReplyEnabled: boolean("auto_reply_enabled").default(true),
+  sentimentAnalysisEnabled: boolean("sentiment_analysis_enabled").default(true),
+  responseDelay: integer("response_delay").default(5), // seconds
+  maxResponseLength: integer("max_response_length").default(200),
+  keywordTriggers: text("keyword_triggers").array().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
   whatsappNumbers: many(whatsappNumbers),
@@ -165,6 +180,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   campaigns: many(campaigns),
   conversations: many(conversations),
   antiBlockingSettings: many(antiBlockingSettings),
+  chatbotSettings: many(chatbotSettings),
 }));
 
 export const whatsappNumbersRelations = relations(whatsappNumbers, ({ one, many }) => ({
@@ -202,6 +218,10 @@ export const antiBlockingSettingsRelations = relations(antiBlockingSettings, ({ 
   user: one(users, { fields: [antiBlockingSettings.userId], references: [users.id] }),
 }));
 
+export const chatbotSettingsRelations = relations(chatbotSettings, ({ one }) => ({
+  user: one(users, { fields: [chatbotSettings.userId], references: [users.id] }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users);
 export const insertWhatsappNumberSchema = createInsertSchema(whatsappNumbers).omit({ id: true, createdAt: true, updatedAt: true }).extend({
@@ -213,6 +233,7 @@ export const insertCampaignSchema = createInsertSchema(campaigns).omit({ id: tru
 export const insertConversationSchema = createInsertSchema(conversations).omit({ id: true, userId: true, createdAt: true, updatedAt: true });
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
 export const insertAntiBlockingSettingsSchema = createInsertSchema(antiBlockingSettings).omit({ id: true, userId: true, createdAt: true, updatedAt: true });
+export const insertChatbotSettingsSchema = createInsertSchema(chatbotSettings).omit({ id: true, userId: true, createdAt: true, updatedAt: true });
 
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
@@ -231,3 +252,5 @@ export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type AntiBlockingSettings = typeof antiBlockingSettings.$inferSelect;
 export type InsertAntiBlockingSettings = z.infer<typeof insertAntiBlockingSettingsSchema>;
+export type ChatbotSettings = typeof chatbotSettings.$inferSelect;
+export type InsertChatbotSettings = z.infer<typeof insertChatbotSettingsSchema>;
