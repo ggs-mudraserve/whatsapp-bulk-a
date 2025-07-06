@@ -304,6 +304,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/conversations/ai-test', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { agentId, agentName } = req.body;
+
+      // Try to find existing AI test contact or create one
+      let testContact;
+      try {
+        const contacts = await storage.getContacts(userId);
+        testContact = contacts.find(c => c.name === `AI Agent: ${agentName}`);
+        
+        if (!testContact) {
+          testContact = await storage.createContact({
+            userId,
+            name: `AI Agent: ${agentName}`,
+            phoneNumber: `ai_test_${agentId}`,
+            status: 'active'
+          });
+        }
+      } catch (error) {
+        console.error("Error with test contact:", error);
+        testContact = await storage.createContact({
+          userId,
+          name: `AI Agent: ${agentName}`,
+          phoneNumber: `ai_test_${agentId}`,
+          status: 'active'
+        });
+      }
+
+      // Try to find existing conversation or create one
+      let conversation;
+      try {
+        const conversations = await storage.getConversations(userId);
+        conversation = conversations.find(c => c.contactId === testContact.id);
+        
+        if (!conversation) {
+          conversation = await storage.createConversation({
+            userId,
+            contactId: testContact.id,
+            contactName: testContact.name,
+            contactPhone: testContact.phoneNumber,
+            status: 'active'
+          });
+        }
+      } catch (error) {
+        console.error("Error with test conversation:", error);
+        conversation = await storage.createConversation({
+          userId,
+          contactId: testContact.id,
+          contactName: testContact.name,
+          contactPhone: testContact.phoneNumber,
+          status: 'active'
+        });
+      }
+
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error creating AI test conversation:", error);
+      res.status(500).json({ message: "Failed to create AI test conversation" });
+    }
+  });
+
   app.put('/api/conversations/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);

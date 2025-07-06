@@ -32,6 +32,7 @@ import {
   MessageSquare,
   Sparkles
 } from "lucide-react";
+import ChatTestInterface from "@/components/ai-agents/chat-test-interface";
 
 // Available AI providers and their models
 const AI_PROVIDERS = {
@@ -270,6 +271,7 @@ export default function AIAgents() {
 
   const [testMessage, setTestMessage] = useState("Hello, I need help with my business.");
   const [selectedTestAgent, setSelectedTestAgent] = useState<string>("");
+  const [testingAgent, setTestingAgent] = useState<Agent | null>(null);
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -701,11 +703,10 @@ export default function AIAgents() {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => testAgent(agent.id)}
-                                disabled={testResponseMutation.isPending}
+                                onClick={() => setTestingAgent(agent)}
                               >
-                                <Play className="w-4 h-4 mr-2" />
-                                Quick Test
+                                <MessageSquare className="w-4 h-4 mr-2" />
+                                Chat Test
                               </Button>
                             </div>
                           );
@@ -719,6 +720,18 @@ export default function AIAgents() {
           </Tabs>
         </main>
       </div>
+      
+      {/* Chat Test Interface */}
+      {testingAgent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="w-full max-w-4xl mx-4">
+            <ChatTestInterface
+              agent={testingAgent}
+              onClose={() => setTestingAgent(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

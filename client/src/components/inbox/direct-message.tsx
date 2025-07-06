@@ -22,9 +22,12 @@ const directMessageSchema = z.object({
 
 type DirectMessageFormData = z.infer<typeof directMessageSchema>;
 
-export default function DirectMessage() {
+interface DirectMessageProps {
+  onClose?: () => void;
+}
+
+export default function DirectMessage({ onClose }: DirectMessageProps) {
   const { toast } = useToast();
-  const [isOpen, setIsOpen] = useState(false);
 
   const { data: whatsappNumbers, isLoading: numbersLoading } = useQuery({
     queryKey: ["/api/whatsapp-numbers"],
@@ -52,7 +55,7 @@ export default function DirectMessage() {
         description: "Your message has been sent successfully.",
       });
       form.reset();
-      setIsOpen(false);
+      onClose?.();
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -85,28 +88,6 @@ export default function DirectMessage() {
       recipientPhone: formattedPhone,
     });
   };
-
-  if (!isOpen) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5" />
-            Send Direct Message
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-600 mb-4">
-            Send a message directly to any WhatsApp number
-          </p>
-          <Button onClick={() => setIsOpen(true)} className="w-full">
-            <Send className="w-4 h-4 mr-2" />
-            Compose Message
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
 
   const availableNumbers = Array.isArray(whatsappNumbers) ? whatsappNumbers.filter((num: any) => num.status === 'active') : [];
 
@@ -189,7 +170,7 @@ export default function DirectMessage() {
               <Button 
                 type="button" 
                 variant="outline"
-                onClick={() => setIsOpen(false)}
+                onClick={onClose}
               >
                 Cancel
               </Button>

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/layout/sidebar";
@@ -6,10 +6,14 @@ import Header from "@/components/layout/header";
 import ConversationList from "@/components/inbox/conversation-list";
 import ChatInterface from "@/components/inbox/chat-interface";
 import DirectMessage from "@/components/inbox/direct-message";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus } from "lucide-react";
 
 export default function Inbox() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
+  const [isDirectMessageOpen, setIsDirectMessageOpen] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -50,13 +54,30 @@ export default function Inbox() {
           subtitle="Manage your WhatsApp conversations"
         />
         <main className="flex-1 overflow-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
             <ConversationList />
             <div className="lg:col-span-2">
               <ChatInterface />
             </div>
-            <DirectMessage />
           </div>
+          
+          {/* Floating + Button */}
+          <Dialog open={isDirectMessageOpen} onOpenChange={setIsDirectMessageOpen}>
+            <DialogTrigger asChild>
+              <Button
+                size="icon"
+                className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white z-50"
+              >
+                <Plus className="h-6 w-6" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md mx-auto">
+              <DialogHeader>
+                <DialogTitle>Send Direct Message</DialogTitle>
+              </DialogHeader>
+              <DirectMessage onClose={() => setIsDirectMessageOpen(false)} />
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </div>
