@@ -313,9 +313,26 @@ class WhatsAppService {
       // Handle credentials update
       sock.ev.on('creds.update', saveCreds);
 
-      // Handle messages (for future use)
-      sock.ev.on('messages.upsert', (m) => {
-        console.log('Received messages:', JSON.stringify(m, undefined, 2));
+      // Handle incoming messages and sync to inbox
+      sock.ev.on('messages.upsert', async (m) => {
+        try {
+          for (const msg of m.messages) {
+            if (!msg.key.fromMe && msg.message) {
+              await this.syncMessageToInbox(msg, userId, sessionId);
+            }
+          }
+        } catch (error) {
+          console.error('Error processing incoming message:', error);
+        }
+      });
+
+      // Handle chat sync for existing conversations
+      sock.ev.on('chats.set', async (chats) => {
+        try {
+          await this.syncChatsToInbox(chats, userId, sessionId);
+        } catch (error) {
+          console.error('Error syncing chats:', error);
+        }
       });
 
     } catch (error) {
@@ -390,6 +407,194 @@ class WhatsAppService {
 
   getCooldownStatus(userId: string): number | null {
     return this.connectionCooldown.get(userId) || null;
+  }
+
+  // Sync incoming message to inbox
+  async syncMessageToInbox(msg: any, userId: string, sessionId: string) {
+    try {
+      const { storage } = await import('./storage');
+      
+      // Extract contact phone number
+      const fromNumber = msg.key.remoteJid?.replace('@s.whatsapp.net', '').replace('@c.us', '');
+      if (!fromNumber) return;
+
+      // Get or create contact
+      let contact = await this.getOrCreateContact(fromNumber, userId);
+      
+      // Get or create conversation
+      let conversation = await this.getOrCreateConversation(contact.id, userId);
+      
+      // Extract message content
+      const messageText = this.extractMessageText(msg);
+      if (!messageText) return;
+
+      // Create message record
+      await storage.createMessage({
+        conversationId: conversation.id,
+        content: messageText,
+        direction: 'incoming',
+        status: 'delivered',
+        whatsappMessageId: msg.key.id || null,
+        metadata: {
+          timestamp: msg.messageTimestamp || Date.now(),
+          fromNumber: fromNumber,
+          sessionId: sessionId
+        }
+      });
+
+      // Update conversation timestamp
+      await storage.updateConversation(conversation.id, {
+        lastMessageAt: new Date(),
+        unreadCount: conversation.unreadCount + 1
+      });
+
+      // Check for AI auto-reply
+      await this.handleAutoReply(messageText, conversation.id, userId, fromNumber);
+
+      console.log(`Synced message from ${fromNumber} to inbox`);
+    } catch (error) {
+      console.error('Error syncing message to inbox:', error);
+    }
+  }
+
+  // Sync existing chats when first connected
+  async syncChatsToInbox(chats: any[], userId: string, sessionId: string) {
+    try {
+      const { storage } = await import('./storage');
+      
+      for (const chat of chats) {
+        const chatId = chat.id?.replace('@s.whatsapp.net', '').replace('@c.us', '');
+        if (!chatId || chatId.includes('@g.us')) continue; // Skip group chats for now
+
+        // Get or create contact
+        let contact = await this.getOrCreateContact(chatId, userId, chat.name);
+        
+        // Get or create conversation
+        let conversation = await this.getOrCreateConversation(contact.id, userId);
+        
+        // Update conversation with chat metadata
+        await storage.updateConversation(conversation.id, {
+          lastMessageAt: chat.conversationTimestamp ? new Date(chat.conversationTimestamp * 1000) : new Date(),
+          unreadCount: chat.unreadCount || 0
+        });
+      }
+
+      console.log(`Synced ${chats.length} chats to inbox`);
+    } catch (error) {
+      console.error('Error syncing chats to inbox:', error);
+    }
+  }
+
+  // Helper methods
+  private async getOrCreateContact(phoneNumber: string, userId: string, name?: string) {
+    const { storage } = await import('./storage');
+    
+    const contacts = await storage.getContacts(userId);
+    let contact = contacts.find(c => c.phoneNumber === `+${phoneNumber}`);
+    
+    if (!contact) {
+      contact = await storage.createContact({
+        userId,
+        phoneNumber: `+${phoneNumber}`,
+        name: name || phoneNumber,
+        status: 'active',
+        tags: [],
+        notes: '',
+        metadata: {}
+      });
+    }
+    
+    return contact;
+  }
+
+  private async getOrCreateConversation(contactId: number, userId: string) {
+    const { storage } = await import('./storage');
+    
+    const conversations = await storage.getConversations(userId);
+    let conversation = conversations.find(c => c.contactId === contactId);
+    
+    if (!conversation) {
+      conversation = await storage.createConversation({
+        userId,
+        contactId,
+        status: 'active',
+        unreadCount: 0,
+        lastMessageAt: new Date()
+      });
+    }
+    
+    return conversation;
+  }
+
+  private extractMessageText(msg: any): string | null {
+    if (msg.message?.conversation) {
+      return msg.message.conversation;
+    }
+    if (msg.message?.extendedTextMessage?.text) {
+      return msg.message.extendedTextMessage.text;
+    }
+    if (msg.message?.imageMessage?.caption) {
+      return msg.message.imageMessage.caption;
+    }
+    if (msg.message?.videoMessage?.caption) {
+      return msg.message.videoMessage.caption;
+    }
+    if (msg.message?.documentMessage?.caption) {
+      return msg.message.documentMessage.caption;
+    }
+    return null;
+  }
+
+  private async handleAutoReply(messageText: string, conversationId: number, userId: string, fromNumber: string) {
+    try {
+      const { storage } = await import('./storage');
+      const { multiAIService } = await import('./ai-service');
+      
+      // Get chatbot settings
+      const chatbotSettings = await storage.getChatbotSettings(userId);
+      if (!chatbotSettings?.enabled || !chatbotSettings?.autoReplyEnabled) {
+        return;
+      }
+
+      // Generate AI response
+      const config = {
+        provider: chatbotSettings.aiProvider || 'openai',
+        model: chatbotSettings.aiModel || 'gpt-4o',
+        apiKey: chatbotSettings.customApiKey,
+        temperature: chatbotSettings.temperature || 0.7,
+        maxTokens: chatbotSettings.maxTokens || 150
+      };
+
+      const response = await multiAIService.generateResponse(messageText, config, {
+        businessName: chatbotSettings.businessName,
+        customInstructions: chatbotSettings.customInstructions
+      });
+
+      if (response.shouldReply && response.message) {
+        // Add delay if configured
+        await new Promise(resolve => setTimeout(resolve, (chatbotSettings.responseDelay || 5) * 1000));
+
+        // Send reply via WhatsApp
+        await this.sendMessage(userId, fromNumber, response.message);
+
+        // Save outgoing message to inbox
+        await storage.createMessage({
+          conversationId,
+          content: response.message,
+          direction: 'outgoing',
+          status: 'sent',
+          whatsappMessageId: null,
+          metadata: {
+            timestamp: Date.now(),
+            autoGenerated: true,
+            aiProvider: response.provider,
+            aiModel: response.model
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error in auto-reply:', error);
+    }
   }
 }
 

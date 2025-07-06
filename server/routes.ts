@@ -724,6 +724,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Chat Response endpoint for inbox multi-agent system
+  app.post('/api/ai/chat-response', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { message, agentId, conversationId, config, context } = req.body;
+      const { multiAIService } = await import('./ai-service');
+
+      if (!message || !config) {
+        return res.status(400).json({ message: "Message and config are required" });
+      }
+
+      // Generate AI response with agent personality
+      const response = await multiAIService.generateResponse(message, config, context);
+
+      res.json({
+        message: response.message,
+        agentId,
+        conversationId,
+        confidence: response.confidence,
+        provider: response.provider,
+        model: response.model,
+        shouldReply: response.shouldReply
+      });
+    } catch (error: any) {
+      console.error("Error generating AI chat response:", error);
+      res.status(500).json({ message: error.message || "Failed to generate AI response" });
+    }
+  });
+
   app.post('/api/ai/sentiment-analysis', isAuthenticated, async (req: any, res) => {
     try {
       const { message, provider, model, apiKey } = req.body;

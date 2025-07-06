@@ -136,3 +136,6 @@ Changelog:
 - July 06, 2025. Enhanced AI Chatbot with multi-provider support: OpenAI, Anthropic Claude, Google Gemini, Cohere, and Mistral AI
 - July 06, 2025. Added advanced AI features: custom API keys, temperature control, token limits, sentiment analysis, template generation
 - July 06, 2025. Created comprehensive multi-provider AI service with professional configuration interface
+- July 06, 2025. Implemented inbox integration with real-time WhatsApp chat synchronization when QR code is scanned
+- July 06, 2025. Added multi-agent AI chatbot system in inbox with 5 specialized agents (Sales Expert, Customer Support, Marketing Guru, Tech Advisor, Business Consultant)
+- July 06, 2025. Created inbox chat interface with AI on/off toggle and agent selection dropdown with visual indicators

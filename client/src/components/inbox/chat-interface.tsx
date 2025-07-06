@@ -4,15 +4,84 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Paperclip, Send, Tag, MoreVertical, MessageCircle } from "lucide-react";
+import { Paperclip, Send, Tag, MoreVertical, MessageCircle, Bot, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface AIAgent {
+  id: string;
+  name: string;
+  description: string;
+  personality: string;
+  provider: string;
+  model: string;
+  color: string;
+}
+
+const defaultAgents: AIAgent[] = [
+  {
+    id: 'sales-expert',
+    name: 'Sales Expert',
+    description: 'Professional sales assistant focused on conversions',
+    personality: 'Professional sales expert who understands customer needs and drives conversions with persuasive communication.',
+    provider: 'openai',
+    model: 'gpt-4o',
+    color: 'bg-green-500'
+  },
+  {
+    id: 'customer-support',
+    name: 'Customer Support',
+    description: 'Helpful support agent for queries and issues',
+    personality: 'Friendly and patient customer support representative who provides clear solutions and maintains customer satisfaction.',
+    provider: 'openai',
+    model: 'gpt-4o',
+    color: 'bg-blue-500'
+  },
+  {
+    id: 'marketing-guru',
+    name: 'Marketing Guru',
+    description: 'Creative marketing specialist with engaging content',
+    personality: 'Creative marketing specialist who creates engaging content, understands trends, and builds brand awareness.',
+    provider: 'anthropic',
+    model: 'claude-3-5-sonnet-20241022',
+    color: 'bg-purple-500'
+  },
+  {
+    id: 'tech-advisor',
+    name: 'Tech Advisor',
+    description: 'Technical expert for product specifications',
+    personality: 'Technical expert who explains complex concepts simply and provides accurate product information.',
+    provider: 'openai',
+    model: 'gpt-4o',
+    color: 'bg-orange-500'
+  },
+  {
+    id: 'business-consultant',
+    name: 'Business Consultant',
+    description: 'Strategic business advisor for B2B conversations',
+    personality: 'Strategic business consultant who understands enterprise needs and provides valuable business insights.',
+    provider: 'anthropic',
+    model: 'claude-3-5-sonnet-20241022',
+    color: 'bg-indigo-500'
+  }
+];
 
 export default function ChatInterface() {
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(1); // Default to first conversation
   const [messageText, setMessageText] = useState("");
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<string>(defaultAgents[0].id);
   const { toast } = useToast();
 
   const { data: messages, isLoading: messagesLoading } = useQuery({
@@ -27,6 +96,11 @@ export default function ChatInterface() {
   });
 
   const selectedConversation = conversations?.find((c: any) => c.id === selectedConversationId);
+
+  const { data: chatbotSettings } = useQuery({
+    queryKey: ["/api/chatbot/settings"],
+    retry: false,
+  });
 
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { content: string; direction: string }) => {
@@ -62,13 +136,72 @@ export default function ChatInterface() {
     },
   });
 
-  const handleSendMessage = () => {
+  // AI response mutation
+  const aiResponseMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest('POST', '/api/ai/chat-response', data);
+    },
+    onSuccess: (response: any) => {
+      if (response.message) {
+        // Send AI response as a message
+        sendMessageMutation.mutate({
+          content: response.message,
+          direction: 'outgoing',
+        });
+      }
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "AI response failed. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSendMessage = async () => {
     if (!messageText.trim() || !selectedConversationId) return;
 
+    const userMessage = messageText;
+    const currentAgent = defaultAgents.find(a => a.id === selectedAgent);
+
+    // Send user message first
     sendMessageMutation.mutate({
-      content: messageText,
+      content: userMessage,
       direction: "outgoing",
     });
+
+    // Generate AI response if enabled
+    if (aiEnabled && currentAgent) {
+      setTimeout(() => {
+        aiResponseMutation.mutate({
+          message: userMessage,
+          agentId: selectedAgent,
+          conversationId: selectedConversationId,
+          config: {
+            provider: currentAgent.provider,
+            model: currentAgent.model,
+            temperature: 0.7,
+            maxTokens: 200,
+          },
+          context: {
+            personality: currentAgent.personality,
+            businessName: chatbotSettings?.businessName || 'Our Business',
+          }
+        });
+      }, 1000); // Small delay to show AI is thinking
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -121,7 +254,38 @@ export default function ChatInterface() {
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          
+          {/* AI Chatbot Controls */}
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={aiEnabled}
+                onCheckedChange={setAiEnabled}
+                id="ai-toggle"
+              />
+              <Label htmlFor="ai-toggle" className="text-sm font-medium">
+                AI Agent
+              </Label>
+            </div>
+            
+            {aiEnabled && (
+              <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {defaultAgents.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-3 h-3 rounded-full ${agent.color}`} />
+                        <span className="text-sm">{agent.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            
             <Button variant="ghost" size="icon">
               <Tag className="w-4 h-4" />
             </Button>
@@ -130,6 +294,25 @@ export default function ChatInterface() {
             </Button>
           </div>
         </div>
+        
+        {/* Active Agent Display */}
+        {aiEnabled && (
+          <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border">
+            <div className="flex items-center space-x-3">
+              <div className={`w-4 h-4 rounded-full ${defaultAgents.find(a => a.id === selectedAgent)?.color}`} />
+              <div className="flex-1">
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 text-purple-500" />
+                  <span className="font-medium text-sm">{defaultAgents.find(a => a.id === selectedAgent)?.name} Active</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {defaultAgents.find(a => a.id === selectedAgent)?.provider}
+                  </Badge>
+                </div>
+                <p className="text-xs text-gray-600 mt-1">{defaultAgents.find(a => a.id === selectedAgent)?.description}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </CardHeader>
 
       {/* Messages */}
