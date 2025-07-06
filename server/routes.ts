@@ -799,8 +799,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Phone number is required" });
       }
 
-      // Generate a unique 6-8 character alphanumeric code
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      // Generate an 8-character alphanumeric code like real WhatsApp
+      const code = Math.random().toString(36).substring(2, 10).toUpperCase().padEnd(8, 'X').substring(0, 8);
       
       // Store the pending linking request in memory (you could use Redis in production)
       const linkingRequest = {
