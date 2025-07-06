@@ -21,7 +21,7 @@ class WhatsAppService {
   async initializeWebSocket(httpServer: Server) {
     this.wss = new WebSocketServer({ 
       server: httpServer, 
-      path: '/ws/whatsapp' 
+      path: '/ws' 
     });
 
     this.wss.on('connection', (ws, req) => {
@@ -47,7 +47,7 @@ class WhatsAppService {
     const { type, sessionId, userId } = data;
 
     switch (type) {
-      case 'start_session':
+      case 'start_whatsapp':
         await this.startWhatsAppSession(sessionId, userId, ws);
         break;
       case 'get_qr':
