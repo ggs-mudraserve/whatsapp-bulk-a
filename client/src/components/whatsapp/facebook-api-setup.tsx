@@ -92,20 +92,21 @@ export default function FacebookApiSetup() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Facebook className="w-5 h-5 text-blue-600" />
-          Facebook Business API
+          WhatsApp Business API
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Connect your verified WhatsApp Business numbers through Facebook Business Manager
+          Connect your WhatsApp Business account through Facebook Business Manager login
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="w-full">
-              <Plus className="w-4 h-4 mr-2" />
-              Connect Business API
-            </Button>
-          </DialogTrigger>
+        <div className="space-y-3">
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Connect Business Account
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>
@@ -120,15 +121,23 @@ export default function FacebookApiSetup() {
                 <Alert>
                   <Building className="h-4 w-4" />
                   <AlertDescription className="text-xs">
-                    <strong>Prerequisites:</strong> You need a verified WhatsApp Business Account through Facebook Business Manager with API access enabled.
+                    <strong>Setup Steps:</strong>
+                    <br />
+                    1. Login to Facebook Business Manager with your business account
+                    <br />
+                    2. Add your WhatsApp Business number to Business Manager
+                    <br />
+                    3. Create a Facebook App with WhatsApp product enabled
+                    <br />
+                    4. Get your API credentials from the App Dashboard
                     <br />
                     <a 
-                      href="https://developers.facebook.com/docs/whatsapp/getting-started" 
+                      href="https://business.facebook.com/" 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline inline-flex items-center gap-1 mt-1"
                     >
-                      Setup Guide <ExternalLink className="w-3 h-3" />
+                      Facebook Business Manager <ExternalLink className="w-3 h-3" />
                     </a>
                   </AlertDescription>
                 </Alert>
@@ -278,19 +287,33 @@ export default function FacebookApiSetup() {
               </div>
             )}
           </DialogContent>
-        </Dialog>
+          </Dialog>
 
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground">
-            Official WhatsApp Business API with enterprise features
-          </p>
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => window.open('https://business.facebook.com/', '_blank')}
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Open Facebook Business Manager
+          </Button>
+        </div>
+
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <h4 className="font-semibold text-green-800 text-sm mb-1">Benefits of Business API:</h4>
+          <ul className="text-xs text-green-700 space-y-1">
+            <li>• Official WhatsApp business messaging</li>
+            <li>• No rate limiting like QR connections</li>
+            <li>• Advanced features & analytics</li>
+            <li>• Verified business account status</li>
+          </ul>
         </div>
 
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="text-xs">
-            <strong>Note:</strong> WhatsApp Business API requires approval from Facebook and may have messaging costs. 
-            This is different from WhatsApp Web and provides official business messaging capabilities.
+            <strong>Requirements:</strong> You need a Facebook Business account with WhatsApp Business added. 
+            This provides official business messaging capabilities (different from WhatsApp Web).
           </AlertDescription>
         </Alert>
       </CardContent>
