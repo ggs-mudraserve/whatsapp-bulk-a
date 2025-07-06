@@ -466,6 +466,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add Facebook WhatsApp Business API endpoint
+  app.post('/api/whatsapp/facebook-api', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { phoneNumberId, accessToken, businessAccountId, displayName, phoneNumber, webhookVerifyToken } = req.body;
+      
+      // Validate required fields
+      if (!phoneNumberId || !accessToken || !businessAccountId || !displayName || !phoneNumber) {
+        return res.status(400).json({ message: 'Missing required fields' });
+      }
+
+      // Test the API connection by making a request to Facebook's Graph API
+      const testResponse = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!testResponse.ok) {
+        return res.status(400).json({ 
+          message: 'Invalid Facebook API credentials. Please check your Access Token and Phone Number ID.' 
+        });
+      }
+
+      // Store the WhatsApp Business API number
+      const whatsappNumber = await storage.createWhatsappNumber({
+        userId,
+        displayName,
+        phoneNumber,
+        accountType: 'business',
+        connectionType: 'facebook_api',
+        status: 'connected',
+        sessionData: {
+          phoneNumberId,
+          accessToken,
+          businessAccountId,
+          webhookVerifyToken,
+        },
+      });
+
+      res.json({ 
+        message: 'WhatsApp Business API connected successfully',
+        number: whatsappNumber 
+      });
+    } catch (error) {
+      console.error('Error connecting Facebook API:', error);
+      res.status(500).json({ message: 'Failed to connect WhatsApp Business API' });
+    }
+  });
+
   const httpServer = createServer(app);
   
   // Initialize WhatsApp WebSocket service

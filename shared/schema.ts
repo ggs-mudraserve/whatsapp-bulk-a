@@ -45,6 +45,7 @@ export const whatsappNumbers = pgTable("whatsapp_numbers", {
   phoneNumber: varchar("phone_number").notNull(),
   displayName: varchar("display_name"),
   accountType: varchar("account_type").default("personal"), // personal, business
+  connectionType: varchar("connection_type").default("qr_code"), // qr_code, facebook_api
   status: varchar("status").default("active"), // active, limited, blocked, disconnected
   dailyMessageLimit: integer("daily_message_limit").default(100),
   messagesSentToday: integer("messages_sent_today").default(0),

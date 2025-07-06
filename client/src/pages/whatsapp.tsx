@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import ImprovedQRSetup from "@/components/whatsapp/improved-qr-setup";
+import FacebookApiSetup from "@/components/whatsapp/facebook-api-setup";
 import ConnectedNumbers from "@/components/whatsapp/connected-numbers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,8 +58,9 @@ export default function WhatsApp() {
           subtitle="Connect your WhatsApp numbers to start sending messages"
         />
         <main className="flex-1 overflow-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
             <ImprovedQRSetup />
+            <FacebookApiSetup />
             <ConnectedNumbers numbers={whatsappNumbers} loading={numbersLoading} />
           </div>
 
