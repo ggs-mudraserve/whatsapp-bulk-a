@@ -137,11 +137,34 @@ class WhatsAppService {
       session.socket = sock;
       this.sessions.set(sessionId, session);
 
+      // Send initial connection status
+      ws.send(JSON.stringify({
+        type: 'connecting',
+        sessionId,
+        message: 'Connecting to WhatsApp servers...'
+      }));
+
+      // Set connection timeout
+      const connectionTimeout = setTimeout(() => {
+        console.log(`Connection timeout for session ${sessionId}`);
+        ws.send(JSON.stringify({
+          type: 'error',
+          sessionId,
+          message: 'Connection timeout. WhatsApp servers may be busy. Please wait 5 minutes and try again.'
+        }));
+        sock.end(undefined);
+        session.status = 'disconnected';
+        this.sessions.set(sessionId, session);
+      }, 45000); // 45 second timeout
+
       // Handle connection updates
       sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
         
         if (qr) {
+          console.log('QR Code received for session:', sessionId);
+          clearTimeout(connectionTimeout); // Clear timeout since we got QR
+          
           // Generate QR code as data URL
           const qrCodeDataUrl = await QRCode.toDataURL(qr, {
             width: 256,
@@ -231,6 +254,7 @@ class WhatsAppService {
           }
         } else if (connection === 'open') {
           console.log('WhatsApp connection opened successfully');
+          clearTimeout(connectionTimeout); // Clear timeout on successful connection
           const phoneNumber = sock.user?.id?.split(':')[0] || 'Unknown';
           
           session.phoneNumber = phoneNumber;
