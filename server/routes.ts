@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { whatsappService } from "./whatsapp";
 import { 
   insertContactSchema, 
   insertTemplateSchema, 
@@ -325,6 +326,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add WhatsApp session endpoint
+  app.post('/api/whatsapp/start-session', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sessionId = `session_${userId}_${Date.now()}`;
+      
+      res.json({ 
+        sessionId, 
+        message: 'WhatsApp session initialized. Connect via WebSocket for QR code.' 
+      });
+    } catch (error) {
+      console.error("Error starting WhatsApp session:", error);
+      res.status(500).json({ message: "Failed to start WhatsApp session" });
+    }
+  });
+
   const httpServer = createServer(app);
+  
+  // Initialize WhatsApp WebSocket service
+  await whatsappService.initializeWebSocket(httpServer);
+  
   return httpServer;
 }

@@ -153,7 +153,7 @@ export class DatabaseStorage implements IStorage {
   async createContact(contact: InsertContact & { userId: string }): Promise<Contact> {
     const [result] = await db
       .insert(contacts)
-      .values(contact)
+      .values([contact])
       .returning();
     return result;
   }
@@ -187,7 +187,7 @@ export class DatabaseStorage implements IStorage {
   async createTemplate(template: InsertTemplate & { userId: string }): Promise<Template> {
     const [result] = await db
       .insert(templates)
-      .values(template)
+      .values([template])
       .returning();
     return result;
   }
@@ -217,7 +217,7 @@ export class DatabaseStorage implements IStorage {
   async createCampaign(campaign: InsertCampaign & { userId: string }): Promise<Campaign> {
     const [result] = await db
       .insert(campaigns)
-      .values(campaign)
+      .values([campaign])
       .returning();
     return result;
   }
@@ -247,7 +247,7 @@ export class DatabaseStorage implements IStorage {
   async createConversation(conversation: InsertConversation & { userId: string }): Promise<Conversation> {
     const [result] = await db
       .insert(conversations)
-      .values(conversation)
+      .values([conversation])
       .returning();
     return result;
   }
