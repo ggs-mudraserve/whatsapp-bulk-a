@@ -168,6 +168,71 @@ export default function AIChatbot() {
     }
   };
 
+  // Advanced AI Features
+  const generateTemplateVariations = useMutation({
+    mutationFn: async () => {
+      const baseTemplate = "Hi {{name}}, thanks for contacting us! How can we help you today?";
+      return await apiRequest(`/api/ai/template-variations`, {
+        method: "POST",
+        body: JSON.stringify({
+          template: baseTemplate,
+          provider: settings.aiProvider,
+          model: settings.aiModel,
+          apiKey: settings.customApiKey,
+          count: 3
+        })
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Template Variations Generated!",
+        description: `Generated ${data.variations?.length || 0} template variations`,
+        variant: "default",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Template Generation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const testSentimentAnalysis = useMutation({
+    mutationFn: async () => {
+      const testMessage = "I am very disappointed with your service. This is unacceptable!";
+      return await apiRequest(`/api/ai/sentiment-analysis`, {
+        method: "POST",
+        body: JSON.stringify({
+          message: testMessage,
+          provider: settings.aiProvider,
+          model: settings.aiModel,
+          apiKey: settings.customApiKey
+        })
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Sentiment Analysis Complete!",
+        description: `Sentiment: ${data.sentiment} (${Math.round(data.confidence * 100)}% confidence)`,
+        variant: "default",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Sentiment Analysis Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const testAIResponse = () => {
+    setTestMessage("Hello, I need help with my order");
+    handleTest();
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -273,6 +338,8 @@ export default function AIChatbot() {
                         <SelectItem value="openai">OpenAI</SelectItem>
                         <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
                         <SelectItem value="gemini">Google Gemini</SelectItem>
+                        <SelectItem value="cohere">Cohere</SelectItem>
+                        <SelectItem value="mistral">Mistral AI</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -294,7 +361,9 @@ export default function AIChatbot() {
                             <SelectItem value="gpt-4o">GPT-4o (Latest)</SelectItem>
                             <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
                             <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                            <SelectItem value="gpt-4">GPT-4</SelectItem>
                             <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                            <SelectItem value="gpt-3.5-turbo-16k">GPT-3.5 Turbo 16K</SelectItem>
                           </>
                         )}
                         {settings.aiProvider === 'anthropic' && (
@@ -302,12 +371,32 @@ export default function AIChatbot() {
                             <SelectItem value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</SelectItem>
                             <SelectItem value="claude-3-haiku-20240307">Claude 3 Haiku</SelectItem>
                             <SelectItem value="claude-3-opus-20240229">Claude 3 Opus</SelectItem>
+                            <SelectItem value="claude-3-sonnet-20240229">Claude 3 Sonnet</SelectItem>
                           </>
                         )}
                         {settings.aiProvider === 'gemini' && (
                           <>
                             <SelectItem value="gemini-pro">Gemini Pro</SelectItem>
                             <SelectItem value="gemini-pro-vision">Gemini Pro Vision</SelectItem>
+                            <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
+                            <SelectItem value="gemini-1.0-pro">Gemini 1.0 Pro</SelectItem>
+                          </>
+                        )}
+                        {settings.aiProvider === 'cohere' && (
+                          <>
+                            <SelectItem value="command-r-plus">Command R+</SelectItem>
+                            <SelectItem value="command-r">Command R</SelectItem>
+                            <SelectItem value="command">Command</SelectItem>
+                            <SelectItem value="command-nightly">Command Nightly</SelectItem>
+                          </>
+                        )}
+                        {settings.aiProvider === 'mistral' && (
+                          <>
+                            <SelectItem value="mistral-large-latest">Mistral Large</SelectItem>
+                            <SelectItem value="mistral-medium-latest">Mistral Medium</SelectItem>
+                            <SelectItem value="mistral-small-latest">Mistral Small</SelectItem>
+                            <SelectItem value="open-mixtral-8x7b">Mixtral 8x7B</SelectItem>
+                            <SelectItem value="open-mistral-7b">Mistral 7B</SelectItem>
                           </>
                         )}
                       </SelectContent>
@@ -409,6 +498,52 @@ export default function AIChatbot() {
                       setSettings(prev => ({ ...prev, sentimentAnalysisEnabled: checked }))
                     }
                   />
+                </div>
+
+                {/* Advanced AI Tools */}
+                <div className="space-y-3 pt-4 border-t">
+                  <Label className="text-sm font-medium">AI Tools & Testing</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => testAIResponse()}
+                      disabled={testMutation.isPending}
+                      className="flex items-center gap-2"
+                    >
+                      <TestTube className="w-4 h-4" />
+                      {testMutation.isPending ? "Testing..." : "Test AI Response"}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => generateTemplateVariations.mutate()}
+                      disabled={generateTemplateVariations.isPending}
+                      className="flex items-center gap-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      {generateTemplateVariations.isPending ? "Generating..." : "Template Generator"}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => testSentimentAnalysis.mutate()}
+                      disabled={testSentimentAnalysis.isPending}
+                      className="flex items-center gap-2"
+                    >
+                      <Brain className="w-4 h-4" />
+                      {testSentimentAnalysis.isPending ? "Analyzing..." : "Sentiment Analysis"}
+                    </Button>
+                  </div>
+                  
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-700">
+                      💡 <strong>Pro AI Features:</strong> Advanced tools for template generation, sentiment analysis, 
+                      message categorization, and automated customer service optimization.
+                    </p>
+                  </div>
                 </div>
               </div>
             </>

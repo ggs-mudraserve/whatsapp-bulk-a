@@ -699,6 +699,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Advanced AI Features with Multi-Provider Support
+  app.post('/api/ai/template-variations', isAuthenticated, async (req: any, res) => {
+    try {
+      const { template, provider, model, apiKey, count } = req.body;
+      const { multiAIService } = await import('./ai-service');
+      
+      const config = {
+        provider: provider || 'openai',
+        model: model || 'gpt-4o',
+        apiKey,
+        temperature: 0.8,
+        maxTokens: 300
+      };
+
+      const variations = await multiAIService.generateTemplateVariations(template || "Hi {{name}}, thanks for contacting us! How can we help you today?", config, count || 3);
+      res.json({ variations });
+    } catch (error) {
+      console.error("Template variations error:", error);
+      res.status(500).json({ 
+        message: "Failed to generate template variations",
+        error: error.message
+      });
+    }
+  });
+
+  app.post('/api/ai/sentiment-analysis', isAuthenticated, async (req: any, res) => {
+    try {
+      const { message, provider, model, apiKey } = req.body;
+      const { multiAIService } = await import('./ai-service');
+      
+      const config = {
+        provider: provider || 'openai',
+        model: model || 'gpt-4o',
+        apiKey,
+        temperature: 0.1,
+        maxTokens: 100
+      };
+
+      const analysis = await multiAIService.analyzeSentiment(message || "I am very disappointed with your service. This is unacceptable!", config);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Sentiment analysis error:", error);
+      res.status(500).json({ 
+        message: "Failed to analyze sentiment",
+        error: error.message
+      });
+    }
+  });
+
+  app.post('/api/ai/categorize-message', isAuthenticated, async (req: any, res) => {
+    try {
+      const { message, provider, model, apiKey } = req.body;
+      const { multiAIService } = await import('./ai-service');
+      
+      const config = {
+        provider: provider || 'openai',
+        model: model || 'gpt-4o',
+        apiKey,
+        temperature: 0.2,
+        maxTokens: 150
+      };
+
+      const categorization = await multiAIService.categorizeMessage(message || "Can you help me track my order?", config);
+      res.json(categorization);
+    } catch (error) {
+      console.error("Message categorization error:", error);
+      res.status(500).json({ 
+        message: "Failed to categorize message",
+        error: error.message
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   
   // Initialize WhatsApp WebSocket service
