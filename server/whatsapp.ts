@@ -140,16 +140,42 @@ class WhatsAppService {
       // Set up auth state (stores session data)
       const { state, saveCreds } = await useMultiFileAuthState(`./auth_info_${sessionId}`);
 
-      // Create WhatsApp socket with proper configuration
+      // Create WhatsApp socket with better configuration
       const sock = makeWASocket({
         version,
         auth: state,
-        printQRInTerminal: false, // We'll handle QR ourselves
-        browser: ['Ubuntu', 'Chrome', '20.0.04'], // Use more common browser info
+        printQRInTerminal: false,
+        browser: ['WhatsApp Marketing', 'Chrome', '20.0.04'],
         generateHighQualityLinkPreview: true,
         markOnlineOnConnect: false,
         syncFullHistory: false,
         defaultQueryTimeoutMs: 60000,
+        connectTimeoutMs: 60000,
+        qrTimeout: 60000,
+        emitOwnEvents: true,
+        keepAliveIntervalMs: 30000,
+        retryRequestDelayMs: 250,
+        maxMsgRetryCount: 5,
+        shouldSyncHistoryMessage: () => false,
+        shouldIgnoreJid: () => false,
+        logger: {
+          level: 'error',
+          child: () => ({ 
+            level: 'error',
+            info: () => {},
+            warn: () => {},
+            error: console.error,
+            debug: () => {},
+            trace: () => {},
+            fatal: console.error
+          }),
+          info: () => {},
+          warn: () => {},
+          error: console.error,
+          debug: () => {},
+          trace: () => {},
+          fatal: console.error
+        }
       });
 
       session.socket = sock;

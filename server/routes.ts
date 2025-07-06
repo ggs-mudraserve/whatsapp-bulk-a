@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { whatsappService } from "./whatsapp";
+import { simpleWhatsAppService } from "./whatsapp-simple";
 import { chatbotService } from "./openai";
 import { 
   insertContactSchema, 
@@ -389,7 +389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const sessionData = selectedNumber.sessionData as any;
         const sessionId = sessionData?.sessionId;
         if (sessionId) {
-          await whatsappService.sendMessage(sessionId, recipientPhone.replace('+', ''), message);
+          await simpleWhatsAppService.sendMessage(sessionId, recipientPhone.replace('+', ''), message);
         }
       } catch (error) {
         console.error('WhatsApp send error:', error);
@@ -940,7 +940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
   // Initialize WhatsApp WebSocket service
-  await whatsappService.initializeWebSocket(httpServer);
+  await simpleWhatsAppService.initializeWebSocket(httpServer);
   
   return httpServer;
 }
