@@ -77,10 +77,13 @@ export default function RealQRSetup() {
         setConnectedName(data.name || 'Unknown');
         setConnectionStatus('connected');
         setQrCodeUrl('');
+        
+        // Refresh the WhatsApp numbers list to show the new number
         queryClient.invalidateQueries({ queryKey: ["/api/whatsapp-numbers"] });
+        
         toast({
-          title: "WhatsApp Connected!",
-          description: `Successfully connected ${data.phoneNumber}`,
+          title: "WhatsApp Connected Successfully!",
+          description: `${data.phoneNumber} has been added to your active numbers`,
         });
         break;
       
@@ -90,8 +93,8 @@ export default function RealQRSetup() {
         setConnectedPhone('');
         setConnectedName('');
         toast({
-          title: "Disconnected",
-          description: data.message || "WhatsApp session disconnected",
+          title: "WhatsApp Disconnected",
+          description: data.message || "Connection was rejected by WhatsApp servers. This happens due to rate limits or multiple connection attempts.",
           variant: "destructive",
         });
         break;
