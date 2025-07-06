@@ -171,8 +171,8 @@ export default function SimpleQRSetup() {
 
   const handleWebSocketMessage = (data: any) => {
     switch (data.type) {
-      case 'qr':
-        setQrCodeUrl(data.qr);
+      case 'qr_code':
+        setQrCodeUrl(data.qrCode);
         setConnectionStatus('qr_ready');
         setErrorMessage('');
         break;
