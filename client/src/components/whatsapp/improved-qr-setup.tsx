@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { QrCode, Smartphone, CheckCircle, AlertTriangle, RefreshCw, Wifi } from "lucide-react";
+import { QrCode, Smartphone, CheckCircle, AlertTriangle, RefreshCw, Wifi, Trash2 } from "lucide-react";
 
 type ConnectionStatus = 'idle' | 'connecting' | 'qr_ready' | 'connected' | 'disconnected' | 'error';
 
@@ -94,11 +94,20 @@ export default function ImprovedQRSetup() {
         setConnectionStatus('disconnected');
         setQrCodeUrl('');
         setConnectedPhone('');
+        
+        const isRateLimit = data.statusCode === 401;
+        const canRetry = data.canRetry;
+        
         toast({
-          title: "Connection Failed",
-          description: data.message || "WhatsApp rejected the connection due to rate limiting. Wait a few minutes before trying again.",
+          title: isRateLimit ? "Rate Limited by WhatsApp" : "Connection Failed",
+          description: data.message || "Connection failed. Please try again.",
           variant: "destructive",
         });
+        
+        // If rate limited, prevent attempts for longer period
+        if (isRateLimit) {
+          setLastConnectionAttempt(Date.now() + (15 * 60 * 1000)); // Block for 15 minutes
+        }
         break;
       
       case 'error':
@@ -181,6 +190,37 @@ export default function ImprovedQRSetup() {
       default: return 'Unknown';
     }
   };
+
+  const clearCacheMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/whatsapp/clear-cache", {});
+    },
+    onSuccess: () => {
+      toast({
+        title: "Cache Cleared",
+        description: "WhatsApp connection data has been reset. You can now try connecting again.",
+      });
+      resetConnection();
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to clear cache",
+        variant: "destructive",
+      });
+    },
+  });
 
   const resetConnection = () => {
     setConnectionStatus('idle');
@@ -291,21 +331,44 @@ export default function ImprovedQRSetup() {
             <div>
               <h3 className="font-semibold text-red-800">Connection Failed</h3>
               <p className="text-sm text-gray-600">
-                WhatsApp rejected the connection due to rate limiting or security measures.
+                WhatsApp connection was blocked. This is a security measure by WhatsApp.
               </p>
             </div>
-            <Button onClick={resetConnection} variant="outline" className="w-full">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Try Again
-            </Button>
             
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="text-xs">
-                If connections keep failing, wait 5-10 minutes before trying again. 
-                WhatsApp has strict limits on connection attempts.
-              </AlertDescription>
-            </Alert>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
+              <h4 className="font-semibold text-red-800 text-sm mb-2">Why this happens:</h4>
+              <ul className="text-xs text-red-700 space-y-1">
+                <li>• Too many connection attempts in a short time</li>
+                <li>• Multiple WhatsApp Web sessions active</li>
+                <li>• WhatsApp detected suspicious activity</li>
+                <li>• Network or VPN issues</li>
+              </ul>
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+              <h4 className="font-semibold text-blue-800 text-sm mb-2">How to fix:</h4>
+              <ul className="text-xs text-blue-700 space-y-1">
+                <li>• Wait 15-30 minutes before trying again</li>
+                <li>• Close other WhatsApp Web tabs/sessions</li>
+                <li>• Try using different internet connection</li>
+                <li>• Use Facebook Business API instead (more reliable)</li>
+              </ul>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={resetConnection} variant="outline">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Try Again
+              </Button>
+              <Button 
+                onClick={() => clearCacheMutation.mutate()} 
+                variant="outline"
+                disabled={clearCacheMutation.isPending}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Clear Cache
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

@@ -63,6 +63,39 @@ class WhatsAppService {
     try {
       console.log(`Starting WhatsApp session ${sessionId} for user ${userId}`);
       
+      // Check for too many active sessions (WhatsApp limit)
+      const activeSessions = Array.from(this.sessions.values()).filter(
+        s => s.status === 'connecting' || s.status === 'qr_ready' || s.status === 'connected'
+      );
+      
+      if (activeSessions.length >= 3) {
+        ws.send(JSON.stringify({
+          type: 'error',
+          sessionId,
+          message: 'Too many active connections. WhatsApp allows maximum 3-4 simultaneous connections. Please disconnect some sessions and try again.'
+        }));
+        return;
+      }
+      
+      // Check for recent failures (rate limiting protection)
+      const recentFailures = Array.from(this.sessions.values()).filter(
+        s => s.userId === userId && s.status === 'disconnected' 
+      );
+      
+      if (recentFailures.length > 0) {
+        // Clear old session data to force fresh connection
+        const authPath = `./auth_info_${sessionId}`;
+        try {
+          await import('fs').then(fs => {
+            if (fs.existsSync(authPath)) {
+              fs.rmSync(authPath, { recursive: true, force: true });
+            }
+          });
+        } catch (error) {
+          console.log('Auth cleanup not needed:', error.message);
+        }
+      }
+      
       // Create session entry
       const session: WhatsAppSession = {
         id: sessionId,
@@ -121,30 +154,66 @@ class WhatsAppService {
         if (connection === 'close') {
           const error = lastDisconnect?.error as Boom;
           const statusCode = error?.output?.statusCode;
-          const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 401;
           
-          console.log('Connection closed due to', lastDisconnect?.error, ', status code:', statusCode, ', reconnecting:', shouldReconnect);
+          console.log('Connection closed due to', lastDisconnect?.error, ', status code:', statusCode);
           
           session.status = 'disconnected';
           this.sessions.set(sessionId, session);
           
           let message = 'WhatsApp session disconnected';
-          if (statusCode === 401) {
-            message = 'WhatsApp rejected the connection. Please wait a few minutes before trying again, or try connecting fewer sessions simultaneously.';
+          let canRetry = false;
+          
+          switch (statusCode) {
+            case 401:
+              message = 'WhatsApp blocked this connection due to rate limiting. This happens when:\n• Too many connection attempts in short time\n• Multiple simultaneous connections\n• Suspicious activity detected\n\nSolution: Wait 15-30 minutes before trying again. Use only one connection at a time.';
+              canRetry = false;
+              break;
+            case 403:
+              message = 'WhatsApp rejected the connection. Your number may be temporarily restricted.';
+              canRetry = false;
+              break;
+            case 408:
+              message = 'Connection timeout. Check your internet connection and try again.';
+              canRetry = true;
+              break;
+            case DisconnectReason.badSession:
+              message = 'Invalid session data. Clearing cache and generating new QR code.';
+              canRetry = true;
+              // Clean up auth data for fresh start
+              try {
+                const fs = await import('fs');
+                const authPath = `./auth_info_${sessionId}`;
+                if (fs.existsSync(authPath)) {
+                  fs.rmSync(authPath, { recursive: true, force: true });
+                }
+              } catch (e) {
+                console.log('Auth cleanup failed:', e);
+              }
+              break;
+            case DisconnectReason.loggedOut:
+              message = 'WhatsApp account was logged out. Please scan QR code again.';
+              canRetry = true;
+              break;
+            default:
+              message = `Connection failed with code ${statusCode}. Please try again.`;
+              canRetry = true;
           }
           
           ws.send(JSON.stringify({
             type: 'disconnected',
             sessionId,
             message,
-            error: error?.message || 'Connection failed'
+            error: error?.message || 'Connection failed',
+            canRetry,
+            statusCode
           }));
           
-          // Don't auto-reconnect for 401 errors (rate limiting)
-          if (shouldReconnect) {
+          // Only auto-reconnect for certain error types
+          if (canRetry && statusCode !== 401 && statusCode !== 403) {
             setTimeout(async () => {
+              console.log(`Auto-retrying connection for session ${sessionId}`);
               await this.startWhatsAppSession(sessionId, userId, ws);
-            }, 5000); // Wait 5 seconds before reconnecting
+            }, 10000); // Wait 10 seconds before reconnecting
           }
         } else if (connection === 'open') {
           console.log('WhatsApp connection opened successfully');

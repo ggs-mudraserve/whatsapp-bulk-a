@@ -466,6 +466,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Clear WhatsApp session data to fix connection issues
+  app.post('/api/whatsapp/clear-cache', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Clear all auth data for this user
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      const authDirs = fs.readdirSync('./').filter(dir => 
+        dir.startsWith('auth_info_') && dir.includes(userId)
+      );
+      
+      for (const dir of authDirs) {
+        try {
+          fs.rmSync(dir, { recursive: true, force: true });
+          console.log(`Cleared auth cache: ${dir}`);
+        } catch (error) {
+          console.log(`Failed to clear ${dir}:`, error);
+        }
+      }
+      
+      res.json({ 
+        message: 'WhatsApp cache cleared successfully. You can now try connecting again.',
+        clearedDirs: authDirs.length
+      });
+    } catch (error) {
+      console.error("Error clearing WhatsApp cache:", error);
+      res.status(500).json({ message: "Failed to clear WhatsApp cache" });
+    }
+  });
+
   // Add Facebook WhatsApp Business API endpoint
   app.post('/api/whatsapp/facebook-api', isAuthenticated, async (req: any, res) => {
     try {
