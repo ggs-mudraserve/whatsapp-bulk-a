@@ -196,7 +196,9 @@ export const antiBlockingSettingsRelations = relations(antiBlockingSettings, ({ 
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users);
-export const insertWhatsappNumberSchema = createInsertSchema(whatsappNumbers).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertWhatsappNumberSchema = createInsertSchema(whatsappNumbers).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  lastActivity: z.date().optional()
+});
 export const insertContactSchema = createInsertSchema(contacts).omit({ id: true, userId: true, createdAt: true, updatedAt: true });
 export const insertTemplateSchema = createInsertSchema(templates).omit({ id: true, userId: true, usageCount: true, createdAt: true, updatedAt: true });
 export const insertCampaignSchema = createInsertSchema(campaigns).omit({ id: true, userId: true, createdAt: true, updatedAt: true });

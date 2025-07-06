@@ -114,7 +114,6 @@ export default function QRCodeSetup() {
       dailyMessageLimit: 100,
       messagesSentToday: 0,
       successRate: "100.00",
-      lastActivity: new Date(),
     });
   };
 

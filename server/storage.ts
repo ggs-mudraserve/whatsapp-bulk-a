@@ -120,7 +120,10 @@ export class DatabaseStorage implements IStorage {
   async createWhatsappNumber(number: InsertWhatsappNumber): Promise<WhatsappNumber> {
     const [result] = await db
       .insert(whatsappNumbers)
-      .values(number)
+      .values({
+        ...number,
+        lastActivity: new Date(),
+      })
       .returning();
     return result;
   }
