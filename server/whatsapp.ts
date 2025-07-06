@@ -119,20 +119,32 @@ class WhatsAppService {
         }
         
         if (connection === 'close') {
-          const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-          console.log('Connection closed due to', lastDisconnect?.error, ', reconnecting:', shouldReconnect);
+          const error = lastDisconnect?.error as Boom;
+          const statusCode = error?.output?.statusCode;
+          const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 401;
           
+          console.log('Connection closed due to', lastDisconnect?.error, ', status code:', statusCode, ', reconnecting:', shouldReconnect);
+          
+          session.status = 'disconnected';
+          this.sessions.set(sessionId, session);
+          
+          let message = 'WhatsApp session disconnected';
+          if (statusCode === 401) {
+            message = 'WhatsApp rejected the connection. Please wait a few minutes before trying again, or try connecting fewer sessions simultaneously.';
+          }
+          
+          ws.send(JSON.stringify({
+            type: 'disconnected',
+            sessionId,
+            message,
+            error: error?.message || 'Connection failed'
+          }));
+          
+          // Don't auto-reconnect for 401 errors (rate limiting)
           if (shouldReconnect) {
-            // Restart session
-            await this.startWhatsAppSession(sessionId, userId, ws);
-          } else {
-            session.status = 'disconnected';
-            this.sessions.set(sessionId, session);
-            ws.send(JSON.stringify({
-              type: 'disconnected',
-              sessionId,
-              message: 'WhatsApp session disconnected'
-            }));
+            setTimeout(async () => {
+              await this.startWhatsAppSession(sessionId, userId, ws);
+            }, 5000); // Wait 5 seconds before reconnecting
           }
         } else if (connection === 'open') {
           console.log('WhatsApp connection opened successfully');

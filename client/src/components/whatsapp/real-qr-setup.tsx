@@ -93,8 +93,8 @@ export default function RealQRSetup() {
         setConnectedPhone('');
         setConnectedName('');
         toast({
-          title: "WhatsApp Disconnected",
-          description: data.message || "Connection was rejected by WhatsApp servers. This happens due to rate limits or multiple connection attempts.",
+          title: "Connection Failed",
+          description: data.message || "WhatsApp rejected the connection due to rate limiting. Wait a few minutes before trying again.",
           variant: "destructive",
         });
         break;
