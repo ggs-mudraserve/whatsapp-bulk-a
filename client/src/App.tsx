@@ -14,6 +14,7 @@ import Templates from "@/pages/templates";
 import WhatsApp from "@/pages/whatsapp";
 import Settings from "@/pages/settings";
 import AIChatbot from "@/pages/ai-chatbot";
+import AIAgents from "@/pages/ai-agents";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -46,8 +47,9 @@ function Router() {
           <Route path="/contacts" component={Contacts} />
           <Route path="/templates" component={Templates} />
           <Route path="/whatsapp" component={WhatsApp} />
-          <Route path="/settings" component={Settings} />
+          <Route path="/ai-agents" component={AIAgents} />
           <Route path="/ai-chatbot" component={AIChatbot} />
+          <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </>
       )}

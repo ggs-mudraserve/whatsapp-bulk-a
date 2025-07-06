@@ -16,7 +16,8 @@ import {
   Settings,
   Menu,
   X,
-  Bot
+  Bot,
+  Brain
 } from "lucide-react";
 
 const navigation = [
@@ -26,6 +27,7 @@ const navigation = [
   { name: 'Contacts', href: '/contacts', icon: Users },
   { name: 'Templates', href: '/templates', icon: FileText },
   { name: 'WhatsApp Setup', href: '/whatsapp', icon: MessageCircle },
+  { name: 'AI Agents', href: '/ai-agents', icon: Brain },
   { name: 'AI Chatbot', href: '/ai-chatbot', icon: Bot },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
