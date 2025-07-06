@@ -21,7 +21,8 @@ import {
   AlertCircle,
   RefreshCw,
   Copy,
-  ArrowRight
+  ArrowRight,
+  Clock
 } from "lucide-react";
 
 const phoneNumberSchema = z.object({
@@ -247,21 +248,47 @@ export default function PhoneCodeSetup() {
         {step === 'code' && (
           <div className="space-y-6">
             {/* Linking Code Display */}
-            <div className="text-center space-y-4">
-              <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Your Linking Code</h3>
-                <div className="flex items-center justify-center space-x-2 mb-4">
-                  <div className="text-3xl font-mono font-bold text-green-600 bg-white px-4 py-2 rounded-lg border">
-                    {linkingCode}
-                  </div>
-                  <Button variant="outline" size="sm" onClick={copyCode}>
-                    <Copy className="w-4 h-4" />
-                  </Button>
+            <div className="text-center space-y-6">
+              <div>
+                <h2 className="text-xl font-normal text-gray-800 mb-2">Enter code on phone</h2>
+                <p className="text-sm text-gray-600 mb-6">
+                  Linking WhatsApp account <span className="text-blue-600 font-medium">{pendingData?.phoneNumber}</span>
+                  <button 
+                    className="text-blue-600 ml-1 text-sm hover:underline"
+                    onClick={() => setStep('phone')}
+                  >
+                    (edit)
+                  </button>
+                </p>
+              </div>
+              
+              {/* Code Display - Individual Character Boxes like WhatsApp Web */}
+              <div className="bg-white rounded-lg p-8">
+                <div className="flex justify-center gap-2 mb-6">
+                  {linkingCode.split('').map((char, index) => (
+                    <div
+                      key={index}
+                      className="w-14 h-14 bg-gray-50 border-2 border-gray-200 rounded-lg flex items-center justify-center text-2xl font-semibold text-gray-800 hover:border-gray-300 transition-colors"
+                    >
+                      {char}
+                    </div>
+                  ))}
                 </div>
                 
-                <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                  <AlertCircle className="w-4 h-4" />
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-4">
+                  <Clock className="w-4 h-4" />
                   <span>Code expires in {formatTime(timeLeft)}</span>
+                </div>
+                
+                <div className="flex justify-center gap-3">
+                  <Button variant="outline" size="sm" onClick={copyCode}>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy Code
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={regenerateCode} disabled={generateCodeMutation.isPending}>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    New Code
+                  </Button>
                 </div>
               </div>
 
@@ -275,39 +302,38 @@ export default function PhoneCodeSetup() {
 
             <Separator />
 
-            {/* Instructions */}
-            <div className="space-y-4">
-              <h4 className="font-semibold text-gray-900">Follow these steps on your phone:</h4>
-              <div className="space-y-3">
+            {/* Instructions - WhatsApp Web Style */}
+            <div className="space-y-4 text-left">
+              <div className="space-y-4">
                 <div className="flex items-start space-x-3">
-                  <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0 text-xs">1</Badge>
+                  <div className="w-6 h-6 bg-gray-100 border border-gray-300 rounded-full flex items-center justify-center text-sm font-medium">1</div>
                   <div className="flex-1">
-                    <p className="text-sm">Open WhatsApp on your phone</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start space-x-3">
-                  <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0 text-xs">2</Badge>
-                  <div className="flex-1">
-                    <p className="text-sm">
-                      <span className="font-medium">Android:</span> Tap Menu → Linked devices
-                      <br />
-                      <span className="font-medium">iPhone:</span> Tap Settings → Linked devices
+                    <p className="text-sm text-gray-700">
+                      Open WhatsApp <span className="inline-flex items-center justify-center w-5 h-5 bg-green-500 rounded text-white text-xs font-bold ml-1">W</span> on your phone
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex items-start space-x-3">
-                  <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0 text-xs">3</Badge>
+                  <div className="w-6 h-6 bg-gray-100 border border-gray-300 rounded-full flex items-center justify-center text-sm font-medium">2</div>
                   <div className="flex-1">
-                    <p className="text-sm">Tap "Link a device"</p>
+                    <p className="text-sm text-gray-700">
+                      On Android tap Menu <span className="font-mono text-xs">⋮</span> • On iPhone tap Settings <span className="font-mono text-xs">⚙️</span>
+                    </p>
                   </div>
                 </div>
                 
                 <div className="flex items-start space-x-3">
-                  <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0 text-xs">4</Badge>
+                  <div className="w-6 h-6 bg-gray-100 border border-gray-300 rounded-full flex items-center justify-center text-sm font-medium">3</div>
                   <div className="flex-1">
-                    <p className="text-sm">Tap "Link with phone number instead"</p>
+                    <p className="text-sm text-gray-700">Tap Linked devices, then Link device</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-gray-100 border border-gray-300 rounded-full flex items-center justify-center text-sm font-medium">4</div>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-700">Tap Link with phone number instead and enter this code on your phone</p>
                   </div>
                 </div>
                 
@@ -317,6 +343,15 @@ export default function PhoneCodeSetup() {
                     <p className="text-sm font-medium">Enter the code: <span className="font-mono text-green-600">{linkingCode}</span></p>
                   </div>
                 </div>
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-gray-200 text-center">
+                <button 
+                  className="text-blue-600 hover:underline text-sm"
+                  onClick={() => setStep('phone')}
+                >
+                  Log in with QR code →
+                </button>
               </div>
             </div>
 
