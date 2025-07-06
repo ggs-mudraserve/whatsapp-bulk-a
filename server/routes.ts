@@ -498,6 +498,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Connect WhatsApp provider
+  app.post('/api/whatsapp/connect-provider', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { provider, name, phoneNumber, apiKey, apiSecret, webhookUrl, businessId, notes } = req.body;
+
+      // Validate required fields
+      if (!provider || !name || !phoneNumber || !apiKey) {
+        return res.status(400).json({ message: "Provider, name, phone number and API key are required" });
+      }
+
+      // Create WhatsApp number with provider details
+      const whatsappNumber = await storage.createWhatsappNumber({
+        userId,
+        phoneNumber,
+        displayName: name,
+        connectionType: 'provider',
+        status: 'active',
+        providerName: provider,
+        apiKey,
+        apiSecret: apiSecret || undefined,
+        webhookUrl: webhookUrl || undefined,
+        businessId: businessId || undefined,
+        notes: notes || undefined
+      });
+
+      res.json(whatsappNumber);
+    } catch (error) {
+      console.error("Error connecting WhatsApp provider:", error);
+      res.status(500).json({ message: "Failed to connect provider" });
+    }
+  });
+
   // Add Facebook WhatsApp Business API endpoint
   app.post('/api/whatsapp/facebook-api', isAuthenticated, async (req: any, res) => {
     try {

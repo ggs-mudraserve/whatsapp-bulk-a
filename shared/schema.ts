@@ -45,13 +45,20 @@ export const whatsappNumbers = pgTable("whatsapp_numbers", {
   phoneNumber: varchar("phone_number").notNull(),
   displayName: varchar("display_name"),
   accountType: varchar("account_type").default("personal"), // personal, business
-  connectionType: varchar("connection_type").default("qr_code"), // qr_code, facebook_api
+  connectionType: varchar("connection_type").default("qr_code"), // qr_code, facebook_api, provider
   status: varchar("status").default("active"), // active, limited, blocked, disconnected
   dailyMessageLimit: integer("daily_message_limit").default(100),
   messagesSentToday: integer("messages_sent_today").default(0),
   successRate: decimal("success_rate", { precision: 5, scale: 2 }).default("0.00"),
   lastActivity: timestamp("last_activity"),
   sessionData: jsonb("session_data"),
+  // Provider-specific fields
+  providerName: varchar("provider_name"),
+  apiKey: text("api_key"),
+  apiSecret: text("api_secret"),
+  webhookUrl: text("webhook_url"),
+  businessId: varchar("business_id"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
