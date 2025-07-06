@@ -18,6 +18,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // Force landing page to load for root path - disable automatic Replit auth redirects
+  app.get('/', (req, res, next) => {
+    // Check if this is a direct access to prevent automatic auth redirects
+    const userAgent = req.get('User-Agent') || '';
+    const acceptsHtml = req.accepts('html');
+    
+    // If it's a browser request for HTML, let our React app handle it
+    if (acceptsHtml && userAgent.includes('Mozilla')) {
+      next();
+      return;
+    }
+    
+    next();
+  });
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {

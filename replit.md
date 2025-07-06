@@ -127,3 +127,8 @@ Preferred communication style: Simple, everyday language.
 
 Changelog:
 - July 06, 2025. Initial setup
+- July 06, 2025. Created professional SendWo-style landing page with modern design
+- July 06, 2025. Fixed QR code generation - server generates QR codes successfully  
+- July 06, 2025. Issue identified: Replit environment automatically redirects to default auth page
+- July 06, 2025. Authentication working correctly - users can log in and access dashboard
+- July 06, 2025. Current limitation: Custom landing page bypassed by Replit's default auth system
