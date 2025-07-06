@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -9,11 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { QrCode, RefreshCw } from "lucide-react";
+import QRCode from "qrcode";
 
 export default function QRCodeSetup() {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [qrCodeGenerated, setQrCodeGenerated] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [accountType, setAccountType] = useState("personal");
@@ -31,6 +33,7 @@ export default function QRCodeSetup() {
       setPhoneNumber("");
       setDisplayName("");
       setQrCodeGenerated(false);
+      setQrCodeUrl("");
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -52,7 +55,7 @@ export default function QRCodeSetup() {
     },
   });
 
-  const handleGenerateQR = () => {
+  const handleGenerateQR = async () => {
     if (!phoneNumber.trim()) {
       toast({
         title: "Phone number required",
@@ -63,15 +66,34 @@ export default function QRCodeSetup() {
     }
 
     setIsGenerating(true);
-    // Simulate QR code generation
-    setTimeout(() => {
-      setIsGenerating(false);
+    try {
+      // Generate QR code for WhatsApp Web connection
+      // This would typically contain a session token or connection string
+      const qrData = `whatsapp-web-connect:${phoneNumber}:${Date.now()}`;
+      const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+        width: 200,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      setQrCodeUrl(qrCodeDataUrl);
       setQrCodeGenerated(true);
       toast({
         title: "QR Code generated",
         description: "Scan the QR code with your WhatsApp to connect.",
       });
-    }, 2000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate QR code. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleConnectNumber = () => {
@@ -142,12 +164,13 @@ export default function QRCodeSetup() {
                 <RefreshCw className="w-8 h-8 text-gray-400 mb-2 animate-spin mx-auto" />
                 <p className="text-sm text-gray-500">Generating QR Code...</p>
               </div>
-            ) : qrCodeGenerated ? (
+            ) : qrCodeGenerated && qrCodeUrl ? (
               <div className="text-center">
-                <div className="w-32 h-32 bg-black mx-auto mb-2 rounded" style={{
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='black'/%3E%3Crect x='10' y='10' width='10' height='10' fill='white'/%3E%3Crect x='30' y='10' width='10' height='10' fill='white'/%3E%3Crect x='50' y='10' width='10' height='10' fill='white'/%3E%3Crect x='70' y='10' width='10' height='10' fill='white'/%3E%3Crect x='10' y='30' width='10' height='10' fill='white'/%3E%3Crect x='30' y='30' width='10' height='10' fill='white'/%3E%3Crect x='50' y='30' width='10' height='10' fill='white'/%3E%3Crect x='70' y='30' width='10' height='10' fill='white'/%3E%3C/svg%3E")`,
-                  backgroundSize: 'cover'
-                }}></div>
+                <img 
+                  src={qrCodeUrl} 
+                  alt="WhatsApp QR Code" 
+                  className="w-40 h-40 mx-auto mb-2 rounded"
+                />
                 <p className="text-sm text-gray-600">Scan with WhatsApp</p>
               </div>
             ) : (
@@ -172,7 +195,10 @@ export default function QRCodeSetup() {
                 {connectNumberMutation.isPending ? "Connecting..." : "Confirm Connection"}
               </Button>
               <br />
-              <Button variant="outline" onClick={() => setQrCodeGenerated(false)} size="sm">
+              <Button variant="outline" onClick={() => {
+                setQrCodeGenerated(false);
+                setQrCodeUrl("");
+              }} size="sm">
                 Generate New QR
               </Button>
             </div>
