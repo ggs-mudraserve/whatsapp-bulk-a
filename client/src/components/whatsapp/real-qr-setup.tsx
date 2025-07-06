@@ -33,7 +33,7 @@ export default function RealQRSetup() {
       ws.send(JSON.stringify({
         type: 'start_session',
         sessionId,
-        userId: user?.id || 'unknown' // Use actual user ID
+        userId: (user as any)?.id || 'unknown' // Use actual user ID
       }));
     };
 

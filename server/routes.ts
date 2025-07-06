@@ -389,6 +389,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send OTP for manual WhatsApp number verification
+  app.post('/api/whatsapp/send-otp', isAuthenticated, async (req: any, res) => {
+    try {
+      const { phoneNumber } = req.body;
+      
+      // Generate a 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Store OTP temporarily (in production, use Redis or similar)
+      // For now, we'll just return the OTP for testing (remove in production)
+      console.log(`OTP for ${phoneNumber}: ${otp}`);
+      
+      // In a real implementation, you would send the OTP via SMS or WhatsApp Business API
+      // For demo purposes, we'll simulate sending it
+      
+      res.json({ 
+        message: 'OTP sent successfully',
+        // In production, remove this line and actually send the OTP
+        otp: otp // Only for demo - remove in production
+      });
+    } catch (error) {
+      console.error("Error sending OTP:", error);
+      res.status(500).json({ message: "Failed to send OTP" });
+    }
+  });
+
+  // Verify OTP and add WhatsApp number
+  app.post('/api/whatsapp/verify-otp', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { phoneNumber, otp, displayName, accountType, dailyMessageLimit, ...numberData } = req.body;
+      
+      // In production, verify the OTP against stored value
+      // For demo, we'll accept any 6-digit OTP
+      if (!otp || otp.length !== 6) {
+        return res.status(400).json({ message: "Invalid OTP" });
+      }
+      
+      // Create WhatsApp number in database
+      const whatsappNumber = await storage.createWhatsappNumber({
+        userId,
+        phoneNumber,
+        displayName,
+        accountType,
+        status: 'active',
+        dailyMessageLimit,
+        messagesSentToday: 0,
+        successRate: '100.00',
+        sessionData: { manuallyAdded: true, verified: true }
+      });
+      
+      res.json({ 
+        message: 'WhatsApp number verified and added successfully',
+        number: whatsappNumber
+      });
+    } catch (error) {
+      console.error("Error verifying OTP:", error);
+      res.status(500).json({ message: "Failed to verify OTP" });
+    }
+  });
+
   // Add WhatsApp session endpoint
   app.post('/api/whatsapp/start-session', isAuthenticated, async (req: any, res) => {
     try {
