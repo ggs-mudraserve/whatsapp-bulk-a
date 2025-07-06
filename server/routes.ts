@@ -893,6 +893,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI test response endpoint
+  app.post('/api/ai/test-response', isAuthenticated, async (req: any, res) => {
+    try {
+      const { message, customInstructions, aiProvider, aiModel, customApiKey, temperature, maxTokens } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const { multiAIService } = await import('./ai-service');
+      
+      const config = {
+        provider: aiProvider || 'openai',
+        model: aiModel || 'gpt-4o',
+        apiKey: customApiKey || process.env.OPENAI_API_KEY,
+        temperature: temperature || 0.7,
+        maxTokens: maxTokens || 500
+      };
+
+      const response = await multiAIService.generateResponse(
+        message,
+        config,
+        {
+          customInstructions: customInstructions || 'You are a helpful assistant.'
+        }
+      );
+
+      res.json(response);
+    } catch (error: any) {
+      console.error("Error generating AI test response:", error);
+      res.status(500).json({ message: error.message || "Failed to generate AI response" });
+    }
+  });
+
   app.post('/api/ai/sentiment-analysis', isAuthenticated, async (req: any, res) => {
     try {
       const { message, provider, model, apiKey } = req.body;

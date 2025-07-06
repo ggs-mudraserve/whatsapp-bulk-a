@@ -48,7 +48,6 @@ function Router() {
           <Route path="/templates" component={Templates} />
           <Route path="/whatsapp" component={WhatsApp} />
           <Route path="/ai-agents" component={AIAgents} />
-          <Route path="/ai-chatbot" component={AIChatbot} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </>

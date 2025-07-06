@@ -145,3 +145,7 @@ Changelog:
 - July 06, 2025. Implemented WhatsApp Web-style phone code linking feature with secure code generation and verification
 - July 06, 2025. Added professional phone code setup component with step-by-step instructions and countdown timer
 - July 06, 2025. Enhanced WhatsApp page with dual connection methods: QR code scanning and phone code linking
+- July 06, 2025. Simplified application as requested: removed AI Chatbot from navigation and routes, kept only AI Agents
+- July 06, 2025. Created simplified WhatsApp page with only QR code connection option
+- July 06, 2025. Fixed test button functionality by adding missing /api/ai/test-response endpoint
+- July 06, 2025. Successfully simplified UI to focus on core QR scanning and AI Agents management
