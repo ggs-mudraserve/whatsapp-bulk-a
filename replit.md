@@ -47,13 +47,16 @@ This is a full-stack WhatsApp Marketing SaaS application built with React, Expre
 - **Anti-blocking Settings**: User-configurable protection parameters
 
 ### Core Features
-1. **WhatsApp Integration**: QR code-based number connection (planned with Baileys/Venom.js)
-2. **Inbox System**: Real-time message management with chat interface
-3. **Campaign Management**: Bulk messaging with personalization and scheduling
-4. **Template System**: Reusable message templates with dynamic content
-5. **Contact Management**: Customer database with CSV import/export
-6. **Anti-blocking Protection**: Message delays, rotation, and behavior simulation
-7. **Analytics Dashboard**: Campaign performance and delivery tracking
+1. **WhatsApp Integration**: Real QR code-based number connection using Baileys library
+2. **Unlimited Numbers**: Support for connecting unlimited WhatsApp numbers via QR codes or manual entry
+3. **Manual Number Setup**: Add WhatsApp numbers manually with custom limits and settings
+4. **Direct Messaging**: Send messages directly to any WhatsApp number from the inbox
+5. **Inbox System**: Real-time message management with chat interface and direct message panel
+6. **Campaign Management**: Bulk messaging with personalization and scheduling
+7. **Template System**: Reusable message templates with dynamic content
+8. **Contact Management**: Customer database with CSV import/export
+9. **Anti-blocking Protection**: Message delays, rotation, and behavior simulation
+10. **Analytics Dashboard**: Campaign performance and delivery tracking
 
 ## Data Flow
 

@@ -5,6 +5,7 @@ import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import ConversationList from "@/components/inbox/conversation-list";
 import ChatInterface from "@/components/inbox/chat-interface";
+import DirectMessage from "@/components/inbox/direct-message";
 
 export default function Inbox() {
   const { toast } = useToast();
@@ -49,11 +50,12 @@ export default function Inbox() {
           subtitle="Manage your WhatsApp conversations"
         />
         <main className="flex-1 overflow-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
             <ConversationList />
             <div className="lg:col-span-2">
               <ChatInterface />
             </div>
+            <DirectMessage />
           </div>
         </main>
       </div>

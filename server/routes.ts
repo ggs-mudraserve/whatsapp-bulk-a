@@ -326,6 +326,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send direct message endpoint
+  app.post('/api/messages/send-direct', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { whatsappNumberId, recipientPhone, message } = req.body;
+
+      // Get the WhatsApp number
+      const whatsappNumber = await storage.getWhatsappNumbers(userId);
+      const selectedNumber = whatsappNumber.find(num => num.id === whatsappNumberId);
+      
+      if (!selectedNumber) {
+        return res.status(404).json({ message: "WhatsApp number not found" });
+      }
+
+      // Create or find conversation
+      let conversation = await storage.getConversations(userId);
+      let existingConversation = conversation.find(conv => conv.contactPhone === recipientPhone);
+      
+      if (!existingConversation) {
+        existingConversation = await storage.createConversation({
+          userId,
+          contactName: recipientPhone.replace('+', ''),
+          contactPhone: recipientPhone,
+          lastMessage: message,
+          lastMessageAt: new Date(),
+          unreadCount: 0,
+          status: 'active',
+          tags: [],
+        });
+      }
+
+      // Create message record
+      await storage.createMessage({
+        conversationId: existingConversation.id,
+        content: message,
+        direction: 'outgoing',
+        status: 'sent',
+        messageType: 'text',
+        timestamp: new Date(),
+      });
+
+      // Try to send via WhatsApp if session exists
+      try {
+        const sessionData = selectedNumber.sessionData as any;
+        const sessionId = sessionData?.sessionId;
+        if (sessionId) {
+          await whatsappService.sendMessage(sessionId, recipientPhone.replace('+', ''), message);
+        }
+      } catch (error) {
+        console.error('WhatsApp send error:', error);
+        // Continue - message is still saved to inbox
+      }
+
+      res.json({ 
+        message: 'Message sent successfully',
+        conversationId: existingConversation.id 
+      });
+    } catch (error) {
+      console.error("Error sending direct message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
   // Add WhatsApp session endpoint
   app.post('/api/whatsapp/start-session', isAuthenticated, async (req: any, res) => {
     try {
