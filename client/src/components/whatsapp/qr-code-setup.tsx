@@ -67,10 +67,10 @@ export default function QRCodeSetup() {
 
     setIsGenerating(true);
     try {
-      // Generate QR code for WhatsApp Web connection
-      // This would typically contain a session token or connection string
-      const qrData = `whatsapp-web-connect:${phoneNumber}:${Date.now()}`;
-      const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+      // Generate demo QR code - in production this would be from WhatsApp Web API
+      const demoMessage = `Demo QR Code for ${phoneNumber}\n\nThis is a demonstration QR code. In a production WhatsApp marketing application, this would contain a real session token from WhatsApp Web API (like Baileys or Venom.js) that allows your phone to connect and authorize message sending.\n\nGenerated: ${new Date().toLocaleString()}`;
+      
+      const qrCodeDataUrl = await QRCode.toDataURL(demoMessage, {
         width: 200,
         margin: 1,
         color: {
@@ -82,8 +82,8 @@ export default function QRCodeSetup() {
       setQrCodeUrl(qrCodeDataUrl);
       setQrCodeGenerated(true);
       toast({
-        title: "QR Code generated",
-        description: "Scan the QR code with your WhatsApp to connect.",
+        title: "Demo QR Code generated",
+        description: "This is a demonstration. Real implementation would use WhatsApp Web API.",
       });
     } catch (error) {
       toast({
@@ -167,10 +167,11 @@ export default function QRCodeSetup() {
               <div className="text-center">
                 <img 
                   src={qrCodeUrl} 
-                  alt="WhatsApp QR Code" 
+                  alt="Demo QR Code" 
                   className="w-40 h-40 mx-auto mb-2 rounded"
                 />
-                <p className="text-sm text-gray-600">Scan with WhatsApp</p>
+                <p className="text-sm text-gray-600">Demo QR Code</p>
+                <p className="text-xs text-gray-500">Real implementation needs WhatsApp Web API</p>
               </div>
             ) : (
               <div className="text-center">
@@ -187,18 +188,21 @@ export default function QRCodeSetup() {
             </Button>
           ) : (
             <div className="space-y-2">
-              <p className="text-sm text-gray-600 mb-4">
-                Scan this QR code with your WhatsApp to connect
+              <p className="text-sm text-gray-600 mb-2">
+                This is a demonstration QR code for the marketing dashboard
+              </p>
+              <p className="text-xs text-gray-500 mb-4">
+                Production version would integrate with WhatsApp Web API (Baileys/Venom.js) for real QR codes
               </p>
               <Button onClick={handleConnectNumber} disabled={connectNumberMutation.isPending}>
-                {connectNumberMutation.isPending ? "Connecting..." : "Confirm Connection"}
+                {connectNumberMutation.isPending ? "Adding..." : "Add Demo Number"}
               </Button>
               <br />
               <Button variant="outline" onClick={() => {
                 setQrCodeGenerated(false);
                 setQrCodeUrl("");
               }} size="sm">
-                Generate New QR
+                Generate New Demo QR
               </Button>
             </div>
           )}
