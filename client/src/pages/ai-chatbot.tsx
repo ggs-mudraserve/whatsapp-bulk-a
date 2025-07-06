@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -32,6 +33,12 @@ interface ChatbotSettings {
   responseDelay: number;
   maxResponseLength: number;
   keywordTriggers: string[];
+  // API Configuration
+  aiProvider: string;
+  aiModel: string;
+  customApiKey?: string;
+  temperature: number;
+  maxTokens: number;
 }
 
 export default function AIChatbot() {
@@ -46,7 +53,12 @@ export default function AIChatbot() {
     sentimentAnalysisEnabled: true,
     responseDelay: 5,
     maxResponseLength: 200,
-    keywordTriggers: []
+    keywordTriggers: [],
+    aiProvider: 'openai',
+    aiModel: 'gpt-4o',
+    customApiKey: '',
+    temperature: 0.7,
+    maxTokens: 150
   });
 
   const [testMessage, setTestMessage] = useState('');
@@ -126,7 +138,12 @@ export default function AIChatbot() {
         sentimentAnalysisEnabled: settingsData.sentimentAnalysisEnabled ?? true,
         responseDelay: settingsData.responseDelay || 5,
         maxResponseLength: settingsData.maxResponseLength || 200,
-        keywordTriggers: settingsData.keywordTriggers || []
+        keywordTriggers: settingsData.keywordTriggers || [],
+        aiProvider: settingsData.aiProvider || 'openai',
+        aiModel: settingsData.aiModel || 'gpt-4o',
+        customApiKey: settingsData.customApiKey || '',
+        temperature: settingsData.temperature || 0.7,
+        maxTokens: settingsData.maxTokens || 150
       });
     }
   }, [settingsData]);
@@ -236,34 +253,129 @@ export default function AIChatbot() {
                 </p>
               </div>
 
-              {/* Advanced Settings */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="responseDelay">Response Delay (seconds)</Label>
-                  <Input
-                    id="responseDelay"
-                    type="number"
-                    min="1"
-                    max="60"
-                    value={settings.responseDelay}
-                    onChange={(e) =>
-                      setSettings(prev => ({ ...prev, responseDelay: parseInt(e.target.value) || 5 }))
-                    }
-                  />
+              {/* AI Provider Configuration */}
+              <div className="space-y-4">
+                <Label className="text-base font-semibold">AI Provider Configuration</Label>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="aiProvider">AI Provider</Label>
+                    <Select
+                      value={settings.aiProvider}
+                      onValueChange={(value) =>
+                        setSettings(prev => ({ ...prev, aiProvider: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select AI Provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="openai">OpenAI</SelectItem>
+                        <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
+                        <SelectItem value="gemini">Google Gemini</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="aiModel">AI Model</Label>
+                    <Select
+                      value={settings.aiModel}
+                      onValueChange={(value) =>
+                        setSettings(prev => ({ ...prev, aiModel: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {settings.aiProvider === 'openai' && (
+                          <>
+                            <SelectItem value="gpt-4o">GPT-4o (Latest)</SelectItem>
+                            <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                            <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                            <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                          </>
+                        )}
+                        {settings.aiProvider === 'anthropic' && (
+                          <>
+                            <SelectItem value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</SelectItem>
+                            <SelectItem value="claude-3-haiku-20240307">Claude 3 Haiku</SelectItem>
+                            <SelectItem value="claude-3-opus-20240229">Claude 3 Opus</SelectItem>
+                          </>
+                        )}
+                        {settings.aiProvider === 'gemini' && (
+                          <>
+                            <SelectItem value="gemini-pro">Gemini Pro</SelectItem>
+                            <SelectItem value="gemini-pro-vision">Gemini Pro Vision</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="maxLength">Max Response Length</Label>
+                  <Label htmlFor="customApiKey">Custom API Key (Optional)</Label>
                   <Input
-                    id="maxLength"
-                    type="number"
-                    min="50"
-                    max="500"
-                    value={settings.maxResponseLength}
+                    id="customApiKey"
+                    type="password"
+                    placeholder="Enter your own API key to use your quota"
+                    value={settings.customApiKey}
                     onChange={(e) =>
-                      setSettings(prev => ({ ...prev, maxResponseLength: parseInt(e.target.value) || 200 }))
+                      setSettings(prev => ({ ...prev, customApiKey: e.target.value }))
                     }
                   />
+                  <p className="text-sm text-gray-500">
+                    Leave empty to use system API key. Provide your own for unlimited usage.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="temperature">Temperature ({settings.temperature})</Label>
+                    <Input
+                      id="temperature"
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={settings.temperature}
+                      onChange={(e) =>
+                        setSettings(prev => ({ ...prev, temperature: parseFloat(e.target.value) }))
+                      }
+                      className="w-full"
+                    />
+                    <p className="text-xs text-gray-500">Higher = more creative</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="maxTokens">Max Tokens</Label>
+                    <Input
+                      id="maxTokens"
+                      type="number"
+                      min="50"
+                      max="2000"
+                      value={settings.maxTokens}
+                      onChange={(e) =>
+                        setSettings(prev => ({ ...prev, maxTokens: parseInt(e.target.value) || 150 }))
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="responseDelay">Response Delay (sec)</Label>
+                    <Input
+                      id="responseDelay"
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={settings.responseDelay}
+                      onChange={(e) =>
+                        setSettings(prev => ({ ...prev, responseDelay: parseInt(e.target.value) || 5 }))
+                      }
+                    />
+                  </div>
                 </div>
               </div>
 

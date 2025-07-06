@@ -9,6 +9,7 @@ import {
   integer,
   boolean,
   decimal,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -159,7 +160,7 @@ export const antiBlockingSettings = pgTable("anti_blocking_settings", {
 
 export const chatbotSettings = pgTable("chatbot_settings", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
   enabled: boolean("enabled").default(false),
   businessName: varchar("business_name"),
   customInstructions: text("custom_instructions"),
@@ -168,6 +169,12 @@ export const chatbotSettings = pgTable("chatbot_settings", {
   responseDelay: integer("response_delay").default(5), // seconds
   maxResponseLength: integer("max_response_length").default(200),
   keywordTriggers: text("keyword_triggers").array().default([]),
+  // API Configuration
+  aiProvider: varchar("ai_provider").default("openai"), // openai, anthropic, gemini
+  aiModel: varchar("ai_model").default("gpt-4o"), // gpt-4o, gpt-3.5-turbo, claude-3-sonnet, gemini-pro
+  customApiKey: varchar("custom_api_key"), // User's own API key
+  temperature: doublePrecision("temperature").default(0.7),
+  maxTokens: integer("max_tokens").default(150),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
