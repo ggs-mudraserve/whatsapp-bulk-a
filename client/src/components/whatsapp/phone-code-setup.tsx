@@ -61,8 +61,9 @@ export default function PhoneCodeSetup() {
     mutationFn: async (data: PhoneNumberFormData) => {
       return await apiRequest('POST', '/api/whatsapp/generate-link-code', data);
     },
-    onSuccess: (response: any) => {
-      setLinkingCode(response.code);
+    onSuccess: async (response: Response) => {
+      const data = await response.json();
+      setLinkingCode(data.code);
       setStep('code');
       setTimeLeft(300); // Reset timer
       
