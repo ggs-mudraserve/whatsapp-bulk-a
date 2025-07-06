@@ -148,18 +148,26 @@ export default function AIAgents() {
       const agent = allAgents.find(a => a.id === agentId);
       if (!agent) throw new Error("Agent not found");
       
-      return await apiRequest('/api/ai/test-response', {
+      const response = await fetch('/api/ai/test-response', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           message,
-          customInstructions: agent.prompt,
-          aiProvider: agent.aiProvider || 'openai',
-          aiModel: agent.aiModel || 'gpt-4o',
-          customApiKey: agent.apiKey,
+          provider: agent.aiProvider || 'openai',
+          model: agent.aiModel || 'gpt-4o',
+          apiKey: agent.apiKey,
           temperature: agent.temperature || 0.7,
           maxTokens: agent.maxTokens || 500
         })
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
     },
     onSuccess: (response) => {
       toast({
@@ -259,6 +267,9 @@ export default function AIAgents() {
     const message = "Hello, I need help with my business.";
     testResponseMutation.mutate({ message, agentId });
   };
+
+  const [testMessage, setTestMessage] = useState("Hello, I need help with my business.");
+  const [selectedTestAgent, setSelectedTestAgent] = useState<string>("");
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -619,36 +630,88 @@ export default function AIAgents() {
                 <CardContent className="space-y-4">
                   <Alert>
                     <AlertDescription>
-                      Test your AI agents with sample messages to see how they respond. This helps you optimize their prompts and behavior.
+                      Test your AI agents with custom messages to see how they respond. This helps you optimize their prompts and behavior.
                     </AlertDescription>
                   </Alert>
                   
-                  <div className="grid gap-4">
-                    {allAgents.map((agent) => {
-                      const IconComponent = agent.icon || Bot;
-                      return (
-                        <div key={agent.id} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${agent.color}`}>
-                              <IconComponent className="w-4 h-4 text-white" />
+                  <div className="space-y-4">
+                    <div className="grid gap-4">
+                      <div>
+                        <Label htmlFor="testMessage">Test Message</Label>
+                        <textarea
+                          id="testMessage"
+                          className="w-full mt-1 p-3 border rounded-lg resize-none"
+                          rows={3}
+                          value={testMessage}
+                          onChange={(e) => setTestMessage(e.target.value)}
+                          placeholder="Enter your test message..."
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="selectedAgent">Select Agent to Test</Label>
+                        <select
+                          id="selectedAgent"
+                          className="w-full mt-1 p-3 border rounded-lg"
+                          value={selectedTestAgent}
+                          onChange={(e) => setSelectedTestAgent(e.target.value)}
+                        >
+                          <option value="">Choose an agent...</option>
+                          {allAgents.map((agent) => (
+                            <option key={agent.id} value={agent.id}>
+                              {agent.name} - {agent.role}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <Button 
+                        onClick={() => {
+                          if (selectedTestAgent && testMessage.trim()) {
+                            testResponseMutation.mutate({ 
+                              message: testMessage, 
+                              agentId: selectedTestAgent 
+                            });
+                          }
+                        }}
+                        disabled={!selectedTestAgent || !testMessage.trim() || testResponseMutation.isPending}
+                        className="w-full"
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        {testResponseMutation.isPending ? "Testing..." : "Test Agent"}
+                      </Button>
+                    </div>
+                    
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium mb-3">Quick Test Buttons</h4>
+                      <div className="grid gap-2">
+                        {allAgents.map((agent) => {
+                          const IconComponent = agent.icon || Bot;
+                          return (
+                            <div key={agent.id} className="flex items-center justify-between p-3 border rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${agent.color}`}>
+                                  <IconComponent className="w-4 h-4 text-white" />
+                                </div>
+                                <div>
+                                  <div className="font-medium">{agent.name}</div>
+                                  <div className="text-sm text-gray-500">{agent.role}</div>
+                                </div>
+                              </div>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => testAgent(agent.id)}
+                                disabled={testResponseMutation.isPending}
+                              >
+                                <Play className="w-4 h-4 mr-2" />
+                                Quick Test
+                              </Button>
                             </div>
-                            <div>
-                              <div className="font-medium">{agent.name}</div>
-                              <div className="text-sm text-gray-500">{agent.role}</div>
-                            </div>
-                          </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => testAgent(agent.id)}
-                            disabled={testResponseMutation.isPending}
-                          >
-                            <Play className="w-4 h-4 mr-2" />
-                            Test Agent
-                          </Button>
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

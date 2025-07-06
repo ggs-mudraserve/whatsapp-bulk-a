@@ -48,14 +48,17 @@ class SimpleWhatsAppService {
 
   private async handleMessage(ws: any, data: any) {
     const { type, sessionId, userId } = data;
+    console.log('Received WebSocket message:', { type, sessionId, userId });
 
     switch (type) {
       case 'connect':
-        await this.createSession(sessionId, userId, ws);
+        await this.createSession(sessionId, userId || 'anonymous', ws);
         break;
       case 'disconnect':
         await this.disconnectSession(sessionId);
         break;
+      default:
+        console.log('Unknown message type:', type);
     }
   }
 

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Smartphone, Wifi, Check, AlertCircle, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface WhatsAppSession {
   id: string;
@@ -16,6 +17,7 @@ export default function SimpleQRSetup() {
   const [session, setSession] = useState<WhatsAppSession | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const startConnection = async () => {
     setIsConnecting(true);
@@ -29,10 +31,18 @@ export default function SimpleQRSetup() {
       socket.onopen = () => {
         console.log("WebSocket connected");
         // Send connection request
+        const sessionId = `session_${Date.now()}`;
         socket.send(JSON.stringify({
-          type: 'whatsapp_connect',
-          sessionId: `session_${Date.now()}`
+          type: 'connect',
+          sessionId,
+          userId: user?.id || 'anonymous'
         }));
+        
+        // Set initial session state
+        setSession({
+          id: sessionId,
+          status: 'connecting'
+        });
       };
 
       socket.onmessage = (event) => {
@@ -40,7 +50,7 @@ export default function SimpleQRSetup() {
           const data = JSON.parse(event.data);
           console.log("Received message:", data);
           
-          if (data.type === 'qr_code') {
+          if (data.type === 'qr_ready') {
             setSession({
               id: data.sessionId,
               status: 'qr_ready',
