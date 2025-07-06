@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { simpleWhatsAppService } from "./whatsapp-simple";
 import { chatbotService } from "./openai";
+import { multiAIService } from "./ai-service";
 import { 
   insertContactSchema, 
   insertTemplateSchema, 
@@ -987,10 +988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const response = await multiAIService.generateResponse(
-        [
-          { role: 'system', content: prompt },
-          { role: 'user', content: message }
-        ],
+        message,
         config
       );
 

@@ -123,23 +123,21 @@ class SimpleWhatsAppService {
         connectTimeoutMs: 30000,
         qrTimeout: 30000,
         logger: {
-          level: 'error',
+          level: 'silent',
           child: () => ({ 
-            level: 'error',
+            level: 'silent',
             child: () => ({} as any),
             info: () => {},
             warn: () => {},
-            error: console.error,
+            error: () => {},
             debug: () => {},
-            trace: () => {},
-            fatal: console.error
+            trace: () => {}
           }),
           info: () => {},
           warn: () => {},
-          error: console.error,
+          error: () => {},
           debug: () => {},
-          trace: () => {},
-          fatal: console.error
+          trace: () => {}
         }
       });
 
