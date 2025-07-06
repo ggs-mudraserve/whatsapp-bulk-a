@@ -199,6 +199,27 @@ export default function SimpleQRSetup() {
         handleConnectionError(data);
         break;
         
+      case 'rate_limited':
+        setConnectionStatus('error');
+        setIsRateLimited(true);
+        
+        // Set rate limit end time if provided
+        if (data.waitTimeMinutes) {
+          const endTime = new Date(Date.now() + (data.waitTimeMinutes * 60 * 1000));
+          setRateLimitEndTime(endTime);
+        } else if (data.cooldownEnd) {
+          setRateLimitEndTime(new Date(data.cooldownEnd));
+        }
+        
+        setErrorMessage(data.message || 'Rate limited by WhatsApp. Please wait before trying again.');
+        
+        toast({
+          title: "Rate Limited",
+          description: `WhatsApp has temporarily blocked connections. Wait ${data.waitTimeMinutes || 15} minutes.`,
+          variant: "destructive",
+        });
+        break;
+        
       default:
         console.log('Unknown message type:', data.type);
     }

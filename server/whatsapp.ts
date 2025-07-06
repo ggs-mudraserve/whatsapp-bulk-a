@@ -18,6 +18,9 @@ class WhatsAppService {
   private sessions: Map<string, WhatsAppSession> = new Map();
   private wss?: WebSocketServer;
   private lastAttempts: Map<string, number> = new Map();
+  private connectionCooldown: Map<string, number> = new Map();
+  private readonly RATE_LIMIT_DELAY = 15 * 60 * 1000; // 15 minutes
+  private readonly MAX_RETRY_ATTEMPTS = 3;
 
   async initializeWebSocket(httpServer: Server) {
     this.wss = new WebSocketServer({ 
@@ -90,13 +93,28 @@ class WhatsAppService {
         console.log('Auth cleanup not needed:', error);
       }
       
-      // Check for rate limiting (prevent too many attempts)
+      // Check if user is in cooldown period due to rate limiting
+      const cooldownEnd = this.connectionCooldown.get(userId) || 0;
       const now = Date.now();
+      
+      if (now < cooldownEnd) {
+        const remainingMinutes = Math.ceil((cooldownEnd - now) / 60000);
+        ws.send(JSON.stringify({
+          type: 'rate_limited',
+          sessionId,
+          message: `Rate limited by WhatsApp. Please wait ${remainingMinutes} minutes before trying again.`,
+          waitTimeMinutes: remainingMinutes,
+          cooldownEnd: cooldownEnd
+        }));
+        return;
+      }
+      
+      // Check for rate limiting (prevent too many attempts)
       const lastAttempt = this.getLastAttemptTime(userId);
       const timeSinceLastAttempt = now - lastAttempt;
       
-      if (timeSinceLastAttempt < 60000) { // 1 minute cooldown
-        const waitTime = Math.ceil((60000 - timeSinceLastAttempt) / 1000);
+      if (timeSinceLastAttempt < 120000) { // 2 minute cooldown between attempts
+        const waitTime = Math.ceil((120000 - timeSinceLastAttempt) / 1000);
         ws.send(JSON.stringify({
           type: 'error',
           sessionId,
@@ -202,8 +220,12 @@ class WhatsAppService {
           
           switch (statusCode) {
             case 401:
+            case 515: // Stream error code often indicates rate limiting
               message = 'WhatsApp blocked this connection due to rate limiting. This happens when:\n• Too many connection attempts in short time\n• Multiple simultaneous connections\n• Suspicious activity detected\n\nSolution: Wait 15-30 minutes before trying again. Use only one connection at a time.';
               canRetry = false;
+              // Set 15-minute cooldown for this user
+              this.connectionCooldown.set(userId, Date.now() + this.RATE_LIMIT_DELAY);
+              console.log(`Rate limit cooldown set for user ${userId} until ${new Date(Date.now() + this.RATE_LIMIT_DELAY).toLocaleTimeString()}`);
               break;
             case 403:
               message = 'WhatsApp rejected the connection. Your number may be temporarily restricted.';
@@ -364,6 +386,10 @@ class WhatsAppService {
 
   private setLastAttemptTime(userId: string, time: number) {
     this.lastAttempts.set(userId, time);
+  }
+
+  getCooldownStatus(userId: string): number | null {
+    return this.connectionCooldown.get(userId) || null;
   }
 }
 
