@@ -14,7 +14,7 @@ import Templates from "@/pages/templates";
 import WhatsApp from "@/pages/whatsapp";
 import Settings from "@/pages/settings";
 import AIChatbot from "@/pages/ai-chatbot";
-import AIAgents from "@/pages/ai-agents";
+import AdvancedAIAgents from "@/pages/advanced-ai-agents";
 import WhatsAppSetupPersistent from "@/pages/whatsapp-setup-persistent";
 import FeaturesOverview from "@/pages/features-overview";
 import TestPage from "@/components/test-page";
@@ -54,7 +54,7 @@ function Router() {
           <Route path="/templates" component={Templates} />
           <Route path="/whatsapp" component={WhatsApp} />
           <Route path="/whatsapp-persistent" component={WhatsAppSetupPersistent} />
-          <Route path="/ai-agents" component={AIAgents} />
+          <Route path="/ai-agents" component={AdvancedAIAgents} />
           <Route path="/features" component={FeaturesOverview} />
           <Route path="/settings" component={Settings} />
           <Route component={() => <div className="p-4 text-center text-gray-500">Page not found. Please check the URL.</div>} />

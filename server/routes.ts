@@ -2183,6 +2183,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Public AI test endpoint - no authentication required
+  // Test API key endpoint
+  app.post('/api/ai/test-key', async (req, res) => {
+    try {
+      const { provider, apiKey } = req.body;
+      
+      if (!provider || !apiKey) {
+        return res.status(400).json({ error: 'Provider and API key required' });
+      }
+
+      // Test the API key with each provider
+      let isValid = false;
+      
+      switch (provider) {
+        case 'openai':
+          try {
+            const OpenAI = require('openai');
+            const openai = new OpenAI({ apiKey });
+            await openai.models.list();
+            isValid = true;
+          } catch (error) {
+            isValid = false;
+          }
+          break;
+          
+        case 'anthropic':
+          try {
+            const Anthropic = require('@anthropic-ai/sdk');
+            const anthropic = new Anthropic({ apiKey });
+            await anthropic.messages.create({
+              model: 'claude-sonnet-4-20250514',
+              max_tokens: 10,
+              messages: [{ role: 'user', content: 'test' }]
+            });
+            isValid = true;
+          } catch (error) {
+            isValid = false;
+          }
+          break;
+          
+        case 'gemini':
+          try {
+            const { GoogleGenAI } = require('@google/genai');
+            const genai = new GoogleGenAI({ apiKey });
+            await genai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: 'test'
+            });
+            isValid = true;
+          } catch (error) {
+            isValid = false;
+          }
+          break;
+          
+        default:
+          // For other providers, assume valid for now
+          isValid = true;
+      }
+      
+      res.json({ valid: isValid, provider });
+    } catch (error) {
+      console.error('API key test error:', error);
+      res.status(500).json({ error: 'Failed to test API key' });
+    }
+  });
+
   app.post('/api/ai/test-response', async (req, res) => {
     try {
       const { 
