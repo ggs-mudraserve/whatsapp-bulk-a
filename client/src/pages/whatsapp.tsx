@@ -1,4 +1,4 @@
-import WorkingQRScanner from "@/components/whatsapp/working-qr-scanner";
+import DirectQRScanner from "@/components/whatsapp/direct-qr-scanner";
 import Sidebar from "@/components/layout/sidebar";
 
 export default function WhatsApp() {
@@ -18,7 +18,7 @@ export default function WhatsApp() {
               </p>
             </div>
             
-            <WorkingQRScanner />
+            <DirectQRScanner />
           </div>
         </main>
       </div>

@@ -554,6 +554,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Direct QR Code generation endpoint - No WebSocket needed
+  app.post('/api/whatsapp/generate-qr-direct', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sessionId = `direct_session_${Date.now()}`;
+      
+      console.log(`Starting direct QR generation for user ${userId}`);
+      
+      // Import required modules
+      const { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = await import('@whiskeysockets/baileys');
+      const QRCode = await import('qrcode');
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      // Clean auth directory
+      const authDir = path.join(process.cwd(), `auth_info_direct_${sessionId}`);
+      try {
+        if (fs.existsSync(authDir)) {
+          fs.rmSync(authDir, { recursive: true, force: true });
+        }
+      } catch (e) {
+        console.log('Auth cleanup not needed');
+      }
+
+      // Get WhatsApp version
+      let version;
+      try {
+        const versionInfo = await fetchLatestBaileysVersion();
+        version = versionInfo.version;
+        console.log(`Using WhatsApp version: ${version.join('.')}`);
+      } catch (error) {
+        version = [2, 2412, 54]; // Stable fallback
+        console.log(`Using fallback WhatsApp version: ${version.join('.')}`);
+      }
+
+      // Setup auth state
+      const { state, saveCreds } = await useMultiFileAuthState(authDir);
+
+      // Create socket with minimal config
+      const socket = makeWASocket({
+        version,
+        auth: state,
+        printQRInTerminal: false,
+        browser: ['WhatsApp Web', 'Chrome', '4.0.0'],
+        generateHighQualityLinkPreview: false,
+        markOnlineOnConnect: false,
+        syncFullHistory: false,
+        defaultQueryTimeoutMs: 15000,
+        connectTimeoutMs: 15000,
+        qrTimeout: 30000,
+        logger: {
+          level: 'silent',
+          child: () => ({ 
+            level: 'silent',
+            child: () => ({} as any),
+            info: () => {},
+            warn: () => {},
+            error: () => {},
+            debug: () => {},
+            trace: () => {},
+            fatal: () => {}
+          }),
+          info: () => {},
+          warn: () => {},
+          error: () => {},
+          debug: () => {},
+          trace: () => {},
+          fatal: () => {}
+        }
+      });
+
+      // Set up QR generation
+      let qrGenerated = false;
+      let connectionTimeout: NodeJS.Timeout;
+      
+      const cleanup = () => {
+        try {
+          socket.logout();
+        } catch (e) {}
+        
+        try {
+          if (fs.existsSync(authDir)) {
+            fs.rmSync(authDir, { recursive: true, force: true });
+          }
+        } catch (e) {}
+        
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+        }
+      };
+      
+      socket.ev.on('connection.update', async (update) => {
+        const { qr, connection } = update;
+        
+        if (qr && !qrGenerated) {
+          qrGenerated = true;
+          console.log('QR Code generated successfully');
+          
+          try {
+            const qrCodeDataUrl = await QRCode.default.toDataURL(qr, {
+              width: 256,
+              margin: 2,
+              color: {
+                dark: '#000000',
+                light: '#FFFFFF'
+              }
+            });
+            
+            cleanup();
+            
+            // Send QR code immediately
+            res.json({
+              success: true,
+              sessionId,
+              qrCode: qrCodeDataUrl,
+              message: 'QR code generated successfully'
+            });
+            
+          } catch (qrError) {
+            console.error('QR generation error:', qrError);
+            cleanup();
+            if (!res.headersSent) {
+              res.status(500).json({ 
+                success: false,
+                message: 'Failed to generate QR code image' 
+              });
+            }
+          }
+        }
+        
+        if (connection === 'close') {
+          cleanup();
+          if (!qrGenerated && !res.headersSent) {
+            res.status(500).json({ 
+              success: false,
+              message: 'Connection closed before QR generation' 
+            });
+          }
+        }
+      });
+
+      socket.ev.on('creds.update', saveCreds);
+
+      // Timeout fallback
+      connectionTimeout = setTimeout(() => {
+        if (!qrGenerated) {
+          console.log('QR generation timeout');
+          cleanup();
+          
+          if (!res.headersSent) {
+            res.status(408).json({ 
+              success: false,
+              message: 'QR generation timeout. Please try again.' 
+            });
+          }
+        }
+      }, 30000);
+
+    } catch (error) {
+      console.error("Direct QR generation error:", error);
+      res.status(500).json({ 
+        success: false,
+        message: `Failed to generate QR code: ${error.message}` 
+      });
+    }
+  });
+
   // Add WhatsApp session endpoint
   app.post('/api/whatsapp/start-session', isAuthenticated, async (req: any, res) => {
     try {
