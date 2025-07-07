@@ -545,8 +545,11 @@ class PersistentWhatsAppService {
             
             const aiResponse = await multiAIService.generateResponse(
               messageBody,
-              conversation.contactName || fromNumber,
-              aiConfig
+              aiConfig,
+              {
+                customerName: conversation.contactName || fromNumber,
+                businessName: "WhatsApp Marketing Assistant"
+              }
             );
 
             if (aiResponse.shouldReply && aiResponse.message) {
