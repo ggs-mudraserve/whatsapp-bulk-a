@@ -170,3 +170,6 @@ Changelog:
 - July 07, 2025. Added real-time connection status polling to track successful QR scans
 - July 07, 2025. Enhanced frontend with live connection monitoring and success feedback
 - July 07, 2025. WhatsApp integration now works end-to-end: QR generation → scanning → connection confirmation
+- July 07, 2025. Switched from Baileys to whatsapp-web.js library as requested by user for better stability
+- July 07, 2025. Fixed ES module import issues with whatsapp-web.js using createRequire for CommonJS compatibility
+- July 07, 2025. Implemented robust Puppeteer-based WhatsApp client with proper session management

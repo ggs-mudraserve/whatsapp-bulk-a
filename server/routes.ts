@@ -562,7 +562,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Starting WhatsApp QR generation for user ${userId}`);
       
-      // Import whatsapp-web.js (CommonJS module)
+      // Import whatsapp-web.js using createRequire for ES modules
+      const { createRequire } = await import('module');
+      const require = createRequire(import.meta.url);
       const { Client, LocalAuth } = require('whatsapp-web.js');
       console.log('Imported whatsapp-web.js:', { Client: typeof Client, LocalAuth: typeof LocalAuth });
       const QRCode = await import('qrcode');
