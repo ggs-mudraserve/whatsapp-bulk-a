@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile } from 'lucide-react';
+import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile, Bot, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -39,6 +39,7 @@ export default function AdvancedInbox() {
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [messageText, setMessageText] = useState('');
+  const [showAIPanel, setShowAIPanel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -299,9 +300,49 @@ export default function AdvancedInbox() {
                     </p>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAIPanel(!showAIPanel)}
+                    className={cn(
+                      "transition-colors",
+                      showAIPanel ? "bg-blue-50 text-blue-700 border-blue-300" : ""
+                    )}
+                  >
+                    <Bot className="w-4 h-4 mr-2" />
+                    AI Agent
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      if (confirm('Delete this conversation? This action cannot be undone.')) {
+                        try {
+                          await apiRequest(`/api/conversations/${selectedConversationId}`, {
+                            method: 'DELETE'
+                          });
+                          await queryClient.invalidateQueries({ queryKey: ['/api/conversations'] });
+                          setSelectedConversationId(null);
+                          toast({
+                            title: "Conversation Deleted",
+                            description: "The conversation has been permanently deleted."
+                          });
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to delete conversation",
+                            variant: "destructive"
+                          });
+                        }
+                      }
+                    }}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -363,6 +404,85 @@ export default function AdvancedInbox() {
                 </div>
               )}
             </ScrollArea>
+
+            {/* AI Panel */}
+            {showAIPanel && (
+              <div className="border-t bg-blue-50 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Bot className="w-5 h-5 text-blue-600" />
+                    <h4 className="font-medium text-blue-900">AI Agent Response</h4>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAIPanel(false)}
+                    className="text-blue-600 hover:text-blue-700"
+                  >
+                    ×
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  <p className="text-sm text-blue-700">
+                    AI agent will automatically generate responses based on the conversation context.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          const lastMessage = messages[messages.length - 1];
+                          if (!lastMessage) {
+                            toast({
+                              title: "No messages",
+                              description: "No messages found to generate response for",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          
+                          const response = await apiRequest('/api/ai/test-response', {
+                            method: 'POST',
+                            body: {
+                              message: lastMessage.content,
+                              provider: 'openai',
+                              model: 'gpt-4o',
+                              temperature: 0.7,
+                              maxTokens: 500
+                            }
+                          });
+                          
+                          setMessageText(response.message);
+                          toast({
+                            title: "AI Response Generated",
+                            description: "AI response has been added to the message input"
+                          });
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to generate AI response",
+                            variant: "destructive"
+                          });
+                        }
+                      }}
+                      className="bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      Generate AI Response
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        window.location.href = '/ai-agents';
+                      }}
+                    >
+                      Manage Agents
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Message Input */}
             <div className="p-4 border-t bg-gray-50">

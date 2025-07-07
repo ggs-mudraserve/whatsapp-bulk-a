@@ -409,8 +409,67 @@ class PersistentWhatsAppService {
       try {
         console.log(`Received message in session ${sessionId}:`, message.body);
         
-        // TODO: Save message to database
-        // This would integrate with your existing message storage system
+        // Save incoming message to database
+        const { storage } = await import('./storage');
+        
+        // Extract sender info
+        const fromNumber = message.from.replace('@c.us', '');
+        const messageBody = message.body || '';
+        
+        console.log(`Processing incoming message from ${fromNumber}: ${messageBody}`);
+        
+        // Find or create contact
+        let contacts = await storage.getContacts(session.userId);
+        let contact = contacts.find(c => c.phoneNumber.replace('+', '') === fromNumber);
+        
+        if (!contact) {
+          contact = await storage.createContact({
+            userId: session.userId,
+            name: fromNumber,
+            phoneNumber: `+${fromNumber}`,
+            status: 'active'
+          });
+          console.log(`Created new contact for ${fromNumber}`);
+        }
+        
+        // Find or create conversation
+        let conversations = await storage.getConversations(session.userId);
+        let conversation = conversations.find(c => c.contactId === contact.id);
+        
+        if (!conversation) {
+          conversation = await storage.createConversation({
+            userId: session.userId,
+            contactId: contact.id,
+            whatsappNumberId: 1, // Default WhatsApp number
+            contactName: contact.name,
+            contactPhone: contact.phoneNumber,
+            lastMessage: messageBody,
+            lastMessageAt: new Date(),
+            unreadCount: 1,
+            status: 'active',
+            tags: []
+          });
+          console.log(`Created new conversation for ${fromNumber}`);
+        } else {
+          // Update existing conversation
+          await storage.updateConversation(conversation.id, {
+            lastMessage: messageBody,
+            lastMessageAt: new Date(),
+            unreadCount: (conversation.unreadCount || 0) + 1
+          });
+        }
+        
+        // Save the message
+        await storage.createMessage({
+          conversationId: conversation.id,
+          content: messageBody,
+          direction: 'incoming',
+          status: 'delivered',
+          messageType: 'text',
+          timestamp: new Date()
+        });
+        
+        console.log(`✓ Saved incoming message from ${fromNumber} to database`);
         
       } catch (error) {
         console.error('Error processing received message:', error);

@@ -426,6 +426,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/conversations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      
+      // Verify conversation belongs to user
+      const conversations = await storage.getConversations(userId);
+      const conversation = conversations.find(c => c.id === id);
+      
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+      
+      // Delete the conversation (this should cascade to messages)
+      await storage.deleteConversation(id);
+      
+      res.json({ success: true, message: "Conversation deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      res.status(500).json({ message: "Failed to delete conversation" });
+    }
+  });
+
   // Messages routes
   app.get('/api/conversations/:id/messages', isAuthenticated, async (req: any, res) => {
     try {
