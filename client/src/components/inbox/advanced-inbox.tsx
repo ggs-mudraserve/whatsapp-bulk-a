@@ -304,12 +304,15 @@ export default function AdvancedInbox() {
       }
     });
 
-    // Update state for next comparison
-    setPreviousConversationCount(conversations.length);
+    // Update state for next comparison with safe array check
+    const conversationsLength = Array.isArray(conversations) ? conversations.length : 0;
+    setPreviousConversationCount(conversationsLength);
     const newMessageCounts: { [key: number]: number } = {};
-    conversations.forEach(conv => {
-      newMessageCounts[conv.id] = conv.unreadCount || 0;
-    });
+    if (Array.isArray(conversations)) {
+      conversations.forEach(conv => {
+        newMessageCounts[conv.id] = conv.unreadCount || 0;
+      });
+    }
     setPreviousMessageCounts(newMessageCounts);
   }, [conversations, selectedConversationId, toast, previousConversationCount, previousMessageCounts]);
 
@@ -334,7 +337,7 @@ export default function AdvancedInbox() {
     }
   }) : [];
 
-  const selectedConversation = conversations.find((conv: Conversation) => conv.id === selectedConversationId);
+  const selectedConversation = Array.isArray(conversations) ? conversations.find((conv: Conversation) => conv.id === selectedConversationId) : null;
 
   const handleSendMessage = () => {
     if (!messageText.trim()) return;
@@ -387,6 +390,31 @@ export default function AdvancedInbox() {
     return colors[index];
   };
 
+  // Show loading state if conversations are loading
+  if (conversationsLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading conversations...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if there's an error
+  if (conversationsError) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">⚠️</div>
+          <p className="text-gray-600 mb-4">Failed to load conversations</p>
+          <Button onClick={() => refetchConversations()}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full">
       <ConnectionWarning />
@@ -406,7 +434,7 @@ export default function AdvancedInbox() {
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                {conversations.length} chats
+                {Array.isArray(conversations) ? conversations.length : 0} chats
               </Badge>
               {totalUnread > 0 && (
                 <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
