@@ -73,7 +73,10 @@ export default function ConversationList() {
                   "p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors",
                   selectedConversation?.id === conversation.id && "bg-blue-50"
                 )}
-                onClick={() => setSelectedConversation(conversation)}
+                onClick={() => {
+                  console.log('Selected conversation:', conversation);
+                  setSelectedConversation(conversation);
+                }}
               >
                 <div className="flex items-start space-x-3">
                   <div className={cn(

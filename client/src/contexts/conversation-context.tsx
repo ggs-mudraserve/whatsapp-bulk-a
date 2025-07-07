@@ -8,6 +8,11 @@ interface Conversation {
   lastMessage?: string;
   lastMessageAt?: string;
   unreadCount: number;
+  whatsappNumberId?: number;
+  tags?: string[];
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface ConversationContextType {

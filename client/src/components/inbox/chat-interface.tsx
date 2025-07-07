@@ -87,6 +87,8 @@ const defaultAgents: AIAgent[] = [
 
 export default function ChatInterface() {
   const { selectedConversation } = useConversation();
+  
+  console.log('ChatInterface - selectedConversation:', selectedConversation);
   const [messageText, setMessageText] = useState("");
   const [aiEnabled, setAiEnabled] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
@@ -462,19 +464,19 @@ export default function ChatInterface() {
         </div>
         
         {/* Active Agent Display */}
-        {aiEnabled && (
+        {aiEnabled && selectedAgent && allAgents.find(a => a.id === selectedAgent) && (
           <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border">
             <div className="flex items-center space-x-3">
-              <div className={`w-4 h-4 rounded-full ${defaultAgents.find(a => a.id === selectedAgent)?.color}`} />
+              <div className={`w-4 h-4 rounded-full ${allAgents.find(a => a.id === selectedAgent)?.color}`} />
               <div className="flex-1">
                 <div className="flex items-center space-x-2">
                   <Sparkles className="w-4 h-4 text-purple-500" />
-                  <span className="font-medium text-sm">{defaultAgents.find(a => a.id === selectedAgent)?.name} Active</span>
+                  <span className="font-medium text-sm">{allAgents.find(a => a.id === selectedAgent)?.name} Active</span>
                   <Badge variant="secondary" className="text-xs">
-                    {defaultAgents.find(a => a.id === selectedAgent)?.provider}
+                    {allAgents.find(a => a.id === selectedAgent)?.provider}
                   </Badge>
                 </div>
-                <p className="text-xs text-gray-600 mt-1">{defaultAgents.find(a => a.id === selectedAgent)?.description}</p>
+                <p className="text-xs text-gray-600 mt-1">{allAgents.find(a => a.id === selectedAgent)?.description}</p>
               </div>
             </div>
           </div>
