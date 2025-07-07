@@ -528,9 +528,7 @@ export default function AdvancedInbox() {
                       if (confirm('Delete this conversation? This action cannot be undone.')) {
                         try {
                           console.log('Deleting conversation with ID:', selectedConversationId);
-                          const response = await apiRequest(`/api/conversations/${selectedConversationId}`, {
-                            method: 'DELETE'
-                          });
+                          const response = await apiRequest('DELETE', `/api/conversations/${selectedConversationId}`);
                           console.log('Delete response:', response);
                           await queryClient.invalidateQueries({ queryKey: ['/api/conversations'] });
                           setSelectedConversationId(null);
