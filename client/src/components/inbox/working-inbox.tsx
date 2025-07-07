@@ -80,7 +80,16 @@ export default function WorkingInbox() {
     refetch: refetchConversations 
   } = useQuery({
     queryKey: ['/api/conversations'],
-    refetchInterval: 2000,
+    refetchInterval: 5000,
+    retry: (failureCount, error: any) => {
+      // Don't retry on authentication errors
+      if (error?.message?.includes('Unauthorized') || error?.status === 401) {
+        console.log('Authentication error detected, redirecting to login...');
+        window.location.href = '/api/login';
+        return false;
+      }
+      return failureCount < 3;
+    },
     onError: (error: any) => {
       console.error('Error fetching conversations:', error);
     }
@@ -357,6 +366,9 @@ export default function WorkingInbox() {
     messagesError,
     messagesLength: messages?.length
   });
+
+  // Emergency fallback if component fails to render
+  try {
 
   return (
     <div className="h-full flex gap-6">
@@ -805,4 +817,19 @@ export default function WorkingInbox() {
       )}
     </div>
   );
+  } catch (error) {
+    console.error('WorkingInbox render error:', error);
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
+          <h3 className="text-xl font-semibold mb-2 text-gray-700">Component Error</h3>
+          <p className="text-gray-500 mb-4">The inbox failed to render. Please refresh the page.</p>
+          <Button onClick={() => window.location.reload()}>
+            Refresh Page
+          </Button>
+        </div>
+      </div>
+    );
+  }
 }
