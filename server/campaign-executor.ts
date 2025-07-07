@@ -76,6 +76,40 @@ export class CampaignExecutor {
         messagesFailed: 0,
       });
 
+      // Initialize WhatsApp clients and usage statistics  
+      const whatsappClients = new Map<string, any>();
+      const numberUsageStats = new Map<string, any>();
+      
+      // Get available WhatsApp numbers for this user
+      const whatsappNumbers = await storage.getWhatsappNumbers(campaign.userId);
+      const connectedNumbers = whatsappNumbers.filter(number => number.status === 'connected');
+      
+      // Get active WhatsApp sessions
+      const sessions = persistentWhatsAppService.getActiveClients();
+      
+      for (const number of connectedNumbers) {
+        const sessionKey = Object.keys(sessions).find(key => 
+          key.includes(number.phoneNumber.replace(/\D/g, '')) || 
+          sessions[key]?.phoneNumber === number.phoneNumber
+        );
+        
+        if (sessionKey && sessions[sessionKey]) {
+          whatsappClients.set(number.phoneNumber, sessions[sessionKey]);
+          numberUsageStats.set(number.phoneNumber, {
+            messagesLastHour: 0,
+            lastUsed: new Date(0), // Long time ago
+            totalSent: 0
+          });
+          console.log(`✓ WhatsApp client ready for number: ${number.phoneNumber}`);
+        }
+      }
+      
+      if (whatsappClients.size === 0) {
+        throw new Error(`No connected WhatsApp numbers available for campaign ${campaignId}`);
+      } else {
+        console.log(`✓ ${whatsappClients.size} WhatsApp numbers available for campaign`);
+      }
+
       // Create execution context
       const context: CampaignExecutionContext = {
         campaign,
@@ -131,35 +165,8 @@ export class CampaignExecutor {
         throw new Error("No message content found for campaign");
       }
 
-      // Get available WhatsApp clients
-      const whatsappNumbers = await storage.getWhatsappNumbers(campaign.userId);
-      const availableNumbers = whatsappNumbers.filter(n => n.status === 'connected');
-      const sessions = persistentWhatsAppService.getActiveClients();
-      const whatsappClients = new Map<string, any>();
-      const numberUsageStats = new Map<string, any>();
-
-      // Initialize clients and stats for available numbers
-      for (const number of availableNumbers) {
-        const sessionKey = Object.keys(sessions).find(key => 
-          key.includes(number.phoneNumber.replace(/\D/g, ''))
-        );
-        
-        if (sessionKey && sessions[sessionKey]) {
-          whatsappClients.set(number.phoneNumber, sessions[sessionKey]);
-          numberUsageStats.set(number.phoneNumber, {
-            messagesLastHour: 0,
-            lastUsed: new Date(0),
-            totalSent: 0
-          });
-          console.log(`✓ WhatsApp client ready for number: ${number.phoneNumber}`);
-        }
-      }
-
-      if (whatsappClients.size === 0) {
-        console.log("⚠ No WhatsApp clients available, campaign will log messages only");
-      } else {
-        console.log(`✓ ${whatsappClients.size} WhatsApp numbers available for campaign`);
-      }
+      console.log(`✓ ${whatsappClients.size} WhatsApp numbers available for campaign`);
+      console.log(`📝 Message content: ${messageContent.substring(0, 100)}...`);
 
       // Shuffle contacts if randomization is enabled
       const antiBlockingSettings = campaign.antiBlockingSettings as any;
