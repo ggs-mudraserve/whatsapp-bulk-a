@@ -48,6 +48,9 @@ export default function AdvancedInbox() {
   const [newChatStep, setNewChatStep] = useState<'phone' | 'name'>('phone');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  
+  // Calculate total unread messages for notification badge
+  const totalUnread = conversations.reduce((sum: number, conv: Conversation) => sum + (conv.unreadCount || 0), 0);
 
 
 
@@ -239,6 +242,13 @@ export default function AdvancedInbox() {
   const [previousConversationCount, setPreviousConversationCount] = useState(0);
   const [previousMessageCounts, setPreviousMessageCounts] = useState<{ [key: number]: number }>({});
 
+  // Request notification permission on component mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
   useEffect(() => {
     // Check for new conversations
     if (conversations.length > previousConversationCount && previousConversationCount > 0) {
@@ -256,21 +266,30 @@ export default function AdvancedInbox() {
       if (currentCount > previousCount && previousCount >= 0) {
         const newMessages = currentCount - previousCount;
         
-        // Don't show notification for currently selected conversation
-        if (conv.id !== selectedConversationId) {
+        // Show notification for all conversations, even currently selected one
+        if (newMessages > 0) {
           toast({
             title: `New message${newMessages > 1 ? 's' : ''} from ${conv.contactName}`,
             description: conv.lastMessage || 'New message received',
+            duration: 4000,
           });
 
-          // Browser notification
-          if (Notification.permission === 'granted') {
+          // Browser notification for non-selected conversations
+          if (conv.id !== selectedConversationId && 'Notification' in window && Notification.permission === 'granted') {
             new Notification(`WhatsApp Pro - ${conv.contactName}`, {
               body: conv.lastMessage || 'New message received',
               icon: '/favicon.ico',
+              tag: `message-${conv.id}`, // Prevent duplicate notifications
             });
-          } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission();
+          }
+
+          // Play notification sound
+          try {
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+HyvmQaADiO2O/PfDMEJnXE8+OVQQ0SaLvq95ZcGQ1Pm+TvxWkcBjaL2PHJdSEJJXfA9d+QQQwVa7ro+5pVFglDnt/yy2QdBjmN2/LJdSEJJ3bE9d2RQgwWaL3n/5pVFAhEntz0zWQdBDOI2fHJfS0EKnHA9NySQw0WAL3K7JiRB');
+            audio.volume = 0.3;
+            audio.play().catch(() => {}); // Ignore errors if audio fails
+          } catch (error) {
+            // Audio creation failed, ignore
           }
         }
       }
@@ -368,10 +387,24 @@ export default function AdvancedInbox() {
         {/* Header */}
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Messages</h2>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-              {conversations.length} chats
-            </Badge>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-semibold text-gray-900">Messages</h2>
+              {totalUnread > 0 && (
+                <div className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                  {totalUnread > 99 ? '99+' : totalUnread}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                {conversations.length} chats
+              </Badge>
+              {totalUnread > 0 && (
+                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                  {totalUnread} unread
+                </Badge>
+              )}
+            </div>
           </div>
           
           {/* Number Selection */}
