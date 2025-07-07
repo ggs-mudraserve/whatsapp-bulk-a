@@ -88,7 +88,6 @@ const defaultAgents: AIAgent[] = [
 export default function ChatInterface() {
   const { selectedConversation } = useConversation();
   
-  console.log('ChatInterface - selectedConversation:', selectedConversation);
   const [messageText, setMessageText] = useState("");
   const [aiEnabled, setAiEnabled] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
@@ -176,6 +175,12 @@ export default function ChatInterface() {
 
   const { data: messages, isLoading: messagesLoading } = useQuery({
     queryKey: ["/api/messages", selectedConversation?.id],
+    queryFn: async () => {
+      if (!selectedConversation?.id) return [];
+      const response = await fetch(`/api/messages?conversationId=${selectedConversation.id}`);
+      if (!response.ok) throw new Error('Failed to fetch messages');
+      return response.json();
+    },
     enabled: !!selectedConversation?.id,
     retry: false,
   });
@@ -197,6 +202,7 @@ export default function ChatInterface() {
       });
     },
     onSuccess: () => {
+      // Refresh messages and conversations
       queryClient.invalidateQueries({ 
         queryKey: ["/api/messages", selectedConversation?.id] 
       });
@@ -208,6 +214,13 @@ export default function ChatInterface() {
         title: "Message sent",
         description: "Your message has been sent successfully.",
       });
+      
+      // Force refresh messages after a short delay
+      setTimeout(() => {
+        queryClient.refetchQueries({ 
+          queryKey: ["/api/messages", selectedConversation?.id] 
+        });
+      }, 500);
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -315,6 +328,10 @@ export default function ChatInterface() {
       </Card>
     );
   }
+
+  // Debug logging
+  console.log('ChatInterface - selectedConversation:', selectedConversation);
+  console.log('ChatInterface - messages:', messages);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
