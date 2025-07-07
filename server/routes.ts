@@ -475,13 +475,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Try to send via WhatsApp if it's an outgoing message
       if (validatedData.direction === 'outgoing') {
+        console.log(`Attempting to send WhatsApp message to ${conversation.contactPhone}`);
+        
         try {
           // Get user's WhatsApp numbers to find an active session
           const whatsappNumbers = await storage.getWhatsappNumbers(userId);
+          console.log(`Found ${whatsappNumbers.length} WhatsApp numbers for user ${userId}`);
+          
+          let messageSent = false;
           
           for (const number of whatsappNumbers) {
             const sessionData = number.sessionData as any;
             const sessionId = sessionData?.sessionId;
+            
+            console.log(`Checking WhatsApp number ${number.phoneNumber}, sessionId: ${sessionId}`);
             
             if (sessionId) {
               try {
@@ -490,13 +497,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   conversation.contactPhone.replace('+', ''), 
                   validatedData.content
                 );
-                console.log(`Message sent via WhatsApp to ${conversation.contactPhone}`);
+                console.log(`✓ Message sent via WhatsApp to ${conversation.contactPhone} using session ${sessionId}`);
+                messageSent = true;
                 break; // Success, stop trying other numbers
               } catch (sendError) {
-                console.error(`Failed to send via session ${sessionId}:`, sendError);
+                console.error(`✗ Failed to send via session ${sessionId}:`, sendError);
                 continue; // Try next session
               }
+            } else {
+              console.log(`No session ID found for WhatsApp number ${number.phoneNumber}`);
             }
+          }
+          
+          if (!messageSent) {
+            console.warn(`No active WhatsApp sessions found to send message to ${conversation.contactPhone}`);
           }
         } catch (whatsappError) {
           console.error('WhatsApp send error:', whatsappError);
@@ -640,8 +654,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const sessionData = selectedNumber.sessionData as any;
         const sessionId = sessionData?.sessionId;
+        
+        console.log(`Direct message - trying to send to ${recipientPhone}`);
+        console.log(`Selected number: ${selectedNumber.phoneNumber}, session: ${sessionId}`);
+        
         if (sessionId) {
-          await simpleWhatsAppService.sendMessage(sessionId, recipientPhone.replace('+', ''), message);
+          await workingWhatsAppService.sendMessage(sessionId, recipientPhone.replace('+', ''), message);
+          console.log(`✓ Direct message sent via WhatsApp to ${recipientPhone} using session ${sessionId}`);
+        } else {
+          console.log(`No session ID found for WhatsApp number ${selectedNumber.phoneNumber}`);
         }
       } catch (error) {
         console.error('WhatsApp send error:', error);
