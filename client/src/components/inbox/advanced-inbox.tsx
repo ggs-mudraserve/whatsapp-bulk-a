@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile, Bot, Trash2, MessageSquarePlus, Ban, Shield, AlertCircle } from 'lucide-react';
+import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile, Bot, Trash2, MessageSquarePlus, Ban, Shield, AlertCircle, FileText, Image } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -46,6 +46,8 @@ export default function AdvancedInbox() {
   const [newChatPhone, setNewChatPhone] = useState('');
   const [newChatName, setNewChatName] = useState('');
   const [newChatStep, setNewChatStep] = useState<'phone' | 'name'>('phone');
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
@@ -64,6 +66,13 @@ export default function AdvancedInbox() {
     onError: () => {
       // Silently handle errors to prevent UI disruption
     }
+  });
+
+  // Fetch templates for template selector
+  const { data: templates = [] } = useQuery({
+    queryKey: ['/api/templates'],
+    retry: 1,
+    retryDelay: 500,
   });
 
   // Debug log to see sessions data
@@ -304,8 +313,8 @@ export default function AdvancedInbox() {
     setPreviousMessageCounts(newMessageCounts);
   }, [conversations, selectedConversationId, toast, previousConversationCount, previousMessageCounts]);
 
-  // Filter conversations based on search and selected number
-  const filteredConversations = conversations.filter((conv: Conversation) => {
+  // Filter conversations based on search and selected number with safe array check
+  const filteredConversations = Array.isArray(conversations) ? conversations.filter((conv: Conversation) => {
     // Filter by search term
     const matchesSearch = conv.contactName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       conv.contactPhone?.includes(searchTerm);
@@ -323,7 +332,7 @@ export default function AdvancedInbox() {
       }
       return matchesSearch;
     }
-  });
+  }) : [];
 
   const selectedConversation = conversations.find((conv: Conversation) => conv.id === selectedConversationId);
 
@@ -886,9 +895,31 @@ export default function AdvancedInbox() {
               ) : (
                 <>
                   <div className="flex items-end space-x-2">
-                    <Button variant="ghost" size="icon" className="mb-1">
+                    {/* Attachment Button */}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="mb-1"
+                      onClick={() => {
+                        toast({
+                          title: "Feature Coming Soon",
+                          description: "File attachment functionality will be available soon",
+                        });
+                      }}
+                    >
                       <Paperclip className="w-4 h-4" />
                     </Button>
+                    
+                    {/* Template Button */}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="mb-1"
+                      onClick={() => setShowTemplateDialog(true)}
+                    >
+                      <FileText className="w-4 h-4" />
+                    </Button>
+                    
                     <div className="flex-1 relative">
                       <Input
                         placeholder="Type a message..."
@@ -924,6 +955,47 @@ export default function AdvancedInbox() {
         )}
       </Card>
       </div>
+      
+      {/* Template Selection Dialog */}
+      {showTemplateDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Select Template</h3>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowTemplateDialog(false)}
+              >
+                ×
+              </Button>
+            </div>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {templates.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No templates available</p>
+              ) : (
+                templates.map((template: any) => (
+                  <div
+                    key={template.id}
+                    className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                    onClick={() => {
+                      setMessageText(template.content);
+                      setShowTemplateDialog(false);
+                      toast({
+                        title: "Template Applied",
+                        description: `Template "${template.name}" has been added to your message`,
+                      });
+                    }}
+                  >
+                    <h4 className="font-medium text-sm">{template.name}</h4>
+                    <p className="text-xs text-gray-600 mt-1 truncate">{template.content}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
