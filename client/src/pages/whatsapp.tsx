@@ -1,4 +1,4 @@
-import SimpleQRSetup from "@/components/whatsapp/simple-qr-setup";
+import RobustQRSetup from "@/components/whatsapp/robust-qr-setup";
 import Sidebar from "@/components/layout/sidebar";
 
 export default function WhatsApp() {
@@ -11,14 +11,14 @@ export default function WhatsApp() {
           <div className="container mx-auto px-6 py-8">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                WhatsApp Connection
+                Enhanced WhatsApp Connection
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                Connect your WhatsApp numbers using QR code
+                Connect your WhatsApp numbers with advanced stability and error protection
               </p>
             </div>
             
-            <SimpleQRSetup />
+            <RobustQRSetup />
           </div>
         </main>
       </div>

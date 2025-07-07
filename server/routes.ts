@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { simpleWhatsAppService } from "./whatsapp-simple";
+import { robustWhatsAppService } from "./whatsapp-robust";
 import { chatbotService } from "./openai";
 import { multiAIService } from "./ai-service";
 import { 
@@ -1074,8 +1075,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   
-  // Initialize WhatsApp WebSocket service
+  // Initialize WhatsApp WebSocket services
   await simpleWhatsAppService.initializeWebSocket(httpServer);
+  await robustWhatsAppService.initializeWebSocket(httpServer);
   
   return httpServer;
 }
