@@ -518,7 +518,7 @@ class PersistentWhatsAppService {
           // Check if user has AI agents enabled
           const aiStorageKey = `ai_agent_${session.userId}_${conversation.id}`;
           
-          // For now, we'll check if AI chatbot is generally enabled for the user
+          // Check if AI chatbot is enabled for the user
           const chatbotSettings = await storage.getChatbotSettings(session.userId);
           
           if (chatbotSettings && chatbotSettings.enabled) {
@@ -533,7 +533,7 @@ class PersistentWhatsAppService {
               temperature: chatbotSettings.temperature || 0.7,
               maxTokens: chatbotSettings.maxTokens || 150
             };
-
+            
             const aiResponse = await multiAIService.generateResponse(
               messageBody,
               conversation.contactName || fromNumber,
@@ -566,6 +566,8 @@ class PersistentWhatsAppService {
             } else {
               console.log(`🤖 AI decided not to reply to: "${messageBody}"`);
             }
+          } else {
+            console.log(`💬 AI chatbot is disabled for user ${session.userId}, message saved without auto-reply`);
           }
         } catch (aiError) {
           console.error('Error with AI auto-reply:', aiError);
