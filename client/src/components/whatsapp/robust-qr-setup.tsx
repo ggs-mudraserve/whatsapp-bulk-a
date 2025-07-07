@@ -27,7 +27,7 @@ export default function RobustQRSetup() {
   const [cooldown, setCooldown] = useState<CooldownInfo>({ active: false, remainingMinutes: 0 });
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
     // Check cooldown status on component mount
@@ -35,7 +35,10 @@ export default function RobustQRSetup() {
   }, [user]);
 
   const checkCooldownStatus = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log("No user found, skipping cooldown check");
+      return;
+    }
     
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -64,7 +67,8 @@ export default function RobustQRSetup() {
         }
       };
 
-      tempSocket.onerror = () => {
+      tempSocket.onerror = (error) => {
+        console.error("Cooldown check WebSocket error:", error);
         tempSocket.close();
       };
     } catch (error) {
@@ -73,6 +77,15 @@ export default function RobustQRSetup() {
   };
 
   const startRobustConnection = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to connect your WhatsApp",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (cooldown.active) {
       toast({
         title: "Connection Blocked",
@@ -195,6 +208,7 @@ export default function RobustQRSetup() {
 
       newSocket.onerror = (error) => {
         console.error("Robust WebSocket error:", error);
+        setIsConnecting(false);
         toast({
           title: "Connection Error",
           description: "Failed to connect to enhanced WhatsApp service",
@@ -271,6 +285,53 @@ export default function RobustQRSetup() {
     const remainingMinutes = minutes % 60;
     return `${hours} hour${hours !== 1 ? 's' : ''} ${remainingMinutes > 0 ? `${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}` : ''}`;
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-400" />
+            <p className="text-gray-600 dark:text-gray-400">Loading authentication...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show login requirement
+  if (!user) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-orange-500" />
+              Login Required
+            </CardTitle>
+            <CardDescription>
+              You need to be logged in to connect your WhatsApp
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Please log in to your account to access WhatsApp connection features.
+              </AlertDescription>
+            </Alert>
+            <div className="mt-4">
+              <Button onClick={() => window.location.href = '/api/login'} className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4" />
+                Login to Continue
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
