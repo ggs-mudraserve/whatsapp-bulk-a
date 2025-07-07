@@ -199,24 +199,31 @@ export class CampaignExecutor {
     });
 
     try {
-      // Get the message content from templates
+      // Get the message content and template data
       let messageContent = campaign.message;
+      let selectedTemplate = null;
       
       // Handle multiple templates (new schema) or single template (legacy)
       if (campaign.templateIds && campaign.templateIds.length > 0) {
         const templates = await storage.getTemplates(campaign.userId);
-        const template = templates.find(t => campaign.templateIds.includes(t.id));
-        if (template) {
-          messageContent = template.content;
-          console.log(`✓ Using template: ${template.name}`);
+        selectedTemplate = templates.find(t => campaign.templateIds.includes(t.id));
+        if (selectedTemplate) {
+          messageContent = selectedTemplate.content;
+          console.log(`✓ Using template: ${selectedTemplate.name}`);
+          if (selectedTemplate.ctaButtons && selectedTemplate.ctaButtons.length > 0) {
+            console.log(`📱 Template has ${selectedTemplate.ctaButtons.length} CTA buttons`);
+          }
         }
       } else if (campaign.templateId) {
         // Legacy single template support
         const templates = await storage.getTemplates(campaign.userId);
-        const template = templates.find(t => t.id === campaign.templateId);
-        if (template) {
-          messageContent = template.content;
-          console.log(`✓ Using legacy template: ${template.name}`);
+        selectedTemplate = templates.find(t => t.id === campaign.templateId);
+        if (selectedTemplate) {
+          messageContent = selectedTemplate.content;
+          console.log(`✓ Using legacy template: ${selectedTemplate.name}`);
+          if (selectedTemplate.ctaButtons && selectedTemplate.ctaButtons.length > 0) {
+            console.log(`📱 Legacy template has ${selectedTemplate.ctaButtons.length} CTA buttons`);
+          }
         }
       }
 
@@ -295,7 +302,15 @@ export class CampaignExecutor {
               const formattedNumber = contact.phoneNumber.replace(/\D/g, '');
               const whatsappId = formattedNumber.includes('@') ? formattedNumber : `${formattedNumber}@c.us`;
               
-              const result = await whatsappClient.sendMessage(whatsappId, messageContent);
+              // Prepare message options with CTA buttons if template has them
+              const messageOptions = selectedTemplate && selectedTemplate.ctaButtons && selectedTemplate.ctaButtons.length > 0 
+                ? { 
+                    ctaButtons: selectedTemplate.ctaButtons,
+                    template: selectedTemplate 
+                  }
+                : undefined;
+
+              const result = await whatsappClient.sendMessage(whatsappId, messageContent, messageOptions);
               messageId = result.id || messageId;
               messageStatus = 'sent';
               deliveredCount++;
@@ -306,7 +321,11 @@ export class CampaignExecutor {
               stats.lastUsed = new Date();
               stats.totalSent++;
               
-              console.log(`✓ Message sent to ${contact.phoneNumber} via ${selectedNumber}`);
+              if (messageOptions?.ctaButtons) {
+                console.log(`✅ Message with ${messageOptions.ctaButtons.length} CTA buttons sent to ${contact.phoneNumber} via ${selectedNumber}`);
+              } else {
+                console.log(`✓ Message sent to ${contact.phoneNumber} via ${selectedNumber}`);
+              }
             } catch (whatsappError) {
               console.error(`Failed to send WhatsApp message to ${contact.phoneNumber}:`, whatsappError);
               messageStatus = 'failed';

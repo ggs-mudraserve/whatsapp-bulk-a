@@ -714,7 +714,10 @@ class PersistentWhatsAppService {
     }
   }
 
-  async sendMessage(sessionId: string, to: string, message: string) {
+  async sendMessage(sessionId: string, to: string, message: string, options?: { 
+    ctaButtons?: Array<{ text: string; url?: string; type: 'url' | 'phone' | 'text' }>,
+    template?: any
+  }) {
     console.log(`Attempting to send message via session ${sessionId} to ${to}: ${message}`);
     
     const client = this.clients.get(sessionId);
@@ -751,8 +754,55 @@ class PersistentWhatsAppService {
       // Format phone number for WhatsApp
       const chatId = to.includes('@') ? to : `${to}@c.us`;
       
-      await client.sendMessage(chatId, message);
-      console.log(`✓ Message sent successfully via session ${sessionId} to ${to}`);
+      // Check if we need to send CTA buttons
+      if (options?.ctaButtons && options.ctaButtons.length > 0) {
+        console.log(`📱 Sending message with ${options.ctaButtons.length} CTA buttons`);
+        
+        try {
+          // Create buttons for whatsapp-web.js
+          const buttons = options.ctaButtons.slice(0, 3).map((button, index) => ({
+            buttonId: `btn_${index}`,
+            buttonText: { displayText: button.text },
+            type: button.type === 'url' ? 'url' : 'replyButton',
+            url: button.url || undefined
+          }));
+
+          // Try sending with buttons first (newer whatsapp-web.js versions)
+          const buttonMessage = {
+            text: message,
+            buttons: buttons,
+            headerType: 1,
+            footer: options.template?.name ? `Template: ${options.template.name}` : ''
+          };
+
+          await client.sendMessage(chatId, buttonMessage);
+          console.log(`✅ Interactive message with buttons sent to ${to}`);
+          
+        } catch (buttonError) {
+          console.log(`⚠️ Interactive buttons not supported, sending as text with links:`, buttonError.message);
+          
+          // Fallback: Send message with buttons as text links
+          let messageWithButtons = message + '\n\n';
+          messageWithButtons += '📋 *Quick Actions:*\n';
+          
+          options.ctaButtons.forEach((button, index) => {
+            if (button.type === 'url' && button.url) {
+              messageWithButtons += `🔗 ${button.text}: ${button.url}\n`;
+            } else if (button.type === 'phone') {
+              messageWithButtons += `📞 ${button.text}\n`;
+            } else {
+              messageWithButtons += `• ${button.text}\n`;
+            }
+          });
+          
+          await client.sendMessage(chatId, messageWithButtons.trim());
+          console.log(`✅ Text message with button links sent to ${to}`);
+        }
+      } else {
+        // Send regular text message
+        await client.sendMessage(chatId, message);
+        console.log(`✓ Message sent successfully via session ${sessionId} to ${to}`);
+      }
       
       session.lastActivity = new Date();
       this.sessions.set(sessionId, session);
