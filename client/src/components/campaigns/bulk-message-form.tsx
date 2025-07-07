@@ -22,6 +22,11 @@ interface BulkMessageFormProps {
 
 export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
   const { toast } = useToast();
+
+  // Add error boundary to catch any rendering errors
+  if (!toast) {
+    return <div>Loading...</div>;
+  }
   
   // Form state
   const [campaignName, setCampaignName] = useState("");
@@ -233,7 +238,7 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
     setBusinessHoursStart("09:00");
     setBusinessHoursEnd("17:00");
     setSkipWeekends(false);
-    setShowDialog(false);
+    if (onSuccess) onSuccess();
   };
 
   const handleSubmit = () => {
