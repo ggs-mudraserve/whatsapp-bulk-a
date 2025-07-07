@@ -446,21 +446,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       
+      console.log(`Delete conversation request - ID: ${id}, User: ${userId}`);
+      
+      if (isNaN(id)) {
+        console.log('Invalid conversation ID provided');
+        return res.status(400).json({ message: "Invalid conversation ID" });
+      }
+      
       // Verify conversation belongs to user
       const conversations = await storage.getConversations(userId);
       const conversation = conversations.find(c => c.id === id);
+      
+      console.log(`Found conversation: ${conversation ? 'Yes' : 'No'}`);
       
       if (!conversation) {
         return res.status(404).json({ message: "Conversation not found" });
       }
       
       // Delete the conversation (this should cascade to messages)
+      console.log(`Deleting conversation ${id}...`);
       await storage.deleteConversation(id);
+      console.log(`✓ Conversation ${id} deleted successfully`);
       
       res.json({ success: true, message: "Conversation deleted successfully" });
     } catch (error) {
       console.error("Error deleting conversation:", error);
-      res.status(500).json({ message: "Failed to delete conversation" });
+      res.status(500).json({ message: `Failed to delete conversation: ${error.message}` });
     }
   });
 

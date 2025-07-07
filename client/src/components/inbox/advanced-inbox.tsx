@@ -527,9 +527,11 @@ export default function AdvancedInbox() {
                     onClick={async () => {
                       if (confirm('Delete this conversation? This action cannot be undone.')) {
                         try {
-                          await apiRequest(`/api/conversations/${selectedConversationId}`, {
+                          console.log('Deleting conversation with ID:', selectedConversationId);
+                          const response = await apiRequest(`/api/conversations/${selectedConversationId}`, {
                             method: 'DELETE'
                           });
+                          console.log('Delete response:', response);
                           await queryClient.invalidateQueries({ queryKey: ['/api/conversations'] });
                           setSelectedConversationId(null);
                           toast({
@@ -537,9 +539,10 @@ export default function AdvancedInbox() {
                             description: "The conversation has been permanently deleted."
                           });
                         } catch (error) {
+                          console.error('Delete conversation error:', error);
                           toast({
                             title: "Error",
-                            description: "Failed to delete conversation",
+                            description: error?.message || "Failed to delete conversation",
                             variant: "destructive"
                           });
                         }
