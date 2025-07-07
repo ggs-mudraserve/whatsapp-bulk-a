@@ -142,7 +142,11 @@ export class CampaignExecutor {
       }
       
       if (whatsappClients.size === 0) {
-        throw new Error(`No connected WhatsApp numbers available for campaign ${campaignId}`);
+        console.log(`❌ No connected WhatsApp sessions found for user ${campaign.userId}`);
+        console.log(`Available sessions: ${connectedSessions.length} (${connectedSessions.map(s => s.status).join(', ')})`);
+        console.log(`Connected database numbers: ${connectedNumbers.length}`);
+        
+        throw new Error(`No connected WhatsApp numbers available for campaign. Please ensure at least one WhatsApp number is connected and ready.`);
       } else {
         console.log(`✓ ${whatsappClients.size} WhatsApp numbers available for campaign`);
       }
