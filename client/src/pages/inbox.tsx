@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
-import WorkingInbox from "@/components/inbox/working-inbox";
+import SimpleTestInbox from "@/components/inbox/simple-test-inbox";
 import DirectMessage from "@/components/inbox/direct-message";
 import ErrorBoundary from "@/components/error-boundary";
 import { Plus, AlertCircle } from "lucide-react";
@@ -91,7 +91,7 @@ export default function Inbox() {
               </div>
             </div>
           }>
-            <WorkingInbox />
+            <SimpleTestInbox />
           </ErrorBoundary>
         </main>
       </div>
