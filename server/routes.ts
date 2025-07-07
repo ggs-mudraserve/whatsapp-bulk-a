@@ -1083,22 +1083,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/whatsapp/active-sessions', isAuthenticated, (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      global.activeSessions = global.activeSessions || new Map();
       
-      const userSessions = Array.from(global.activeSessions.entries())
-        .filter(([key, session]) => session.userId === userId)
-        .map(([key, session]) => ({
-          sessionId: session.sessionId,
+      // Get sessions from persistent and working services
+      const persistentSessions = persistentWhatsAppService.getAllSessions();
+      const workingSessions = workingWhatsAppService.getAllSessions();
+      
+      console.log(`Active sessions check: ${persistentSessions.length} persistent, ${workingSessions.length} working`);
+      
+      // Filter for user's sessions and format them
+      const userPersistentSessions = persistentSessions
+        .filter(session => session.userId === userId)
+        .map(session => ({
+          id: session.id,
+          sessionId: session.id,
           phoneNumber: session.phoneNumber || 'Connecting...',
-          connected: session.connected || false,
-          createdAt: session.createdAt,
-          connectedAt: session.connectedAt
+          status: session.status,
+          connected: session.status === 'connected',
+          lastActivity: session.lastActivity,
+          type: 'persistent'
         }));
+        
+      const userWorkingSessions = workingSessions
+        .filter(session => session.userId === userId)
+        .map(session => ({
+          id: session.id,
+          sessionId: session.id,
+          phoneNumber: session.phoneNumber || 'Connecting...',
+          status: session.status,
+          connected: session.status === 'connected',
+          lastActivity: session.lastActivity,
+          type: 'working'
+        }));
+
+      const allUserSessions = [...userPersistentSessions, ...userWorkingSessions];
+      const connectedSessions = allUserSessions.filter(s => s.connected);
+
+      console.log(`Returning ${allUserSessions.length} total sessions for user ${userId}, ${connectedSessions.length} connected`);
 
       res.json({
         success: true,
-        sessions: userSessions,
-        total: userSessions.length
+        sessions: allUserSessions,
+        connected: connectedSessions,
+        count: connectedSessions.length,
+        total: allUserSessions.length
       });
     } catch (error) {
       console.error('Error fetching active sessions:', error);
