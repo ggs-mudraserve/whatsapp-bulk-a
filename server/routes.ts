@@ -585,6 +585,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete campaign
+  app.delete('/api/campaigns/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      console.log(`Deleting campaign ID: ${campaignId} for user: ${userId}`);
+      
+      // Stop campaign if it's running
+      await campaignExecutor.stopCampaign(campaignId);
+      
+      // Delete campaign from database
+      await storage.deleteCampaign(campaignId, userId);
+      
+      res.json({ success: true, message: "Campaign deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting campaign:", error);
+      res.status(500).json({ message: error.message || "Failed to delete campaign" });
+    }
+  });
+
   app.get('/api/campaigns/executing', isAuthenticated, async (req: any, res) => {
     try {
       const executingCampaigns = campaignExecutor.getExecutingCampaigns();

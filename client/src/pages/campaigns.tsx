@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Play, Clock, Check, Pause, Upload, Settings, Users, MessageSquare, Shield, Zap, RefreshCw } from "lucide-react";
+import { Play, Clock, Check, Pause, Upload, Settings, Users, MessageSquare, Shield, Zap, RefreshCw, Trash2 } from "lucide-react";
 
 interface Campaign {
   id: number;
@@ -154,6 +154,48 @@ export default function Campaigns() {
       toast({
         title: "Error",
         description: error.message || "Failed to start campaign.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Pause campaign mutation
+  const pauseCampaignMutation = useMutation({
+    mutationFn: async (campaignId: number) => {
+      return await apiRequest("POST", `/api/campaigns/${campaignId}/pause`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      toast({
+        title: "Campaign paused",
+        description: "Your campaign has been paused.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to pause campaign.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete campaign mutation
+  const deleteCampaignMutation = useMutation({
+    mutationFn: async (campaignId: number) => {
+      return await apiRequest("DELETE", `/api/campaigns/${campaignId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      toast({
+        title: "Campaign deleted",
+        description: "Your campaign has been deleted permanently.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete campaign.",
         variant: "destructive",
       });
     },
@@ -497,22 +539,39 @@ export default function Campaigns() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex space-x-2">
-                              {campaign.status === 'draft' && (
+                              {(campaign.status === 'draft' || campaign.status === 'paused') && (
                                 <Button
                                   size="sm"
                                   onClick={() => startCampaignMutation.mutate(campaign.id)}
                                   disabled={startCampaignMutation.isPending}
+                                  className="bg-green-600 hover:bg-green-700"
                                 >
                                   <Play className="w-4 h-4 mr-1" />
                                   Start
                                 </Button>
                               )}
                               {campaign.status === 'active' && (
-                                <Button size="sm" variant="outline">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => pauseCampaignMutation.mutate(campaign.id)}
+                                  disabled={pauseCampaignMutation.isPending}
+                                  className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700"
+                                >
                                   <Pause className="w-4 h-4 mr-1" />
                                   Pause
                                 </Button>
                               )}
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => deleteCampaignMutation.mutate(campaign.id)}
+                                disabled={deleteCampaignMutation.isPending}
+                                className="bg-red-50 hover:bg-red-100 text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                Delete
+                              </Button>
                             </div>
                           </td>
                         </tr>

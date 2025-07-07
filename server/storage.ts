@@ -70,6 +70,7 @@ export interface IStorage {
   getCampaigns(userId: string): Promise<Campaign[]>;
   createCampaign(campaign: InsertCampaign & { userId: string }): Promise<Campaign>;
   updateCampaign(id: number, updates: Partial<Campaign>): Promise<Campaign>;
+  deleteCampaign(id: number, userId?: string): Promise<void>;
   deleteCampaign(id: number): Promise<void>;
   
   // Conversations
@@ -316,8 +317,18 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async deleteCampaign(id: number): Promise<void> {
-    await db.delete(campaigns).where(eq(campaigns.id, id));
+  async deleteCampaign(id: number, userId: string): Promise<void> {
+    await db
+      .delete(campaigns)
+      .where(and(eq(campaigns.id, id), eq(campaigns.userId, userId)));
+  }
+
+  async deleteCampaign(id: number, userId?: string): Promise<void> {
+    if (userId) {
+      await db.delete(campaigns).where(and(eq(campaigns.id, id), eq(campaigns.userId, userId)));
+    } else {
+      await db.delete(campaigns).where(eq(campaigns.id, id));
+    }
   }
 
   // Conversations
