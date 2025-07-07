@@ -55,10 +55,12 @@ export default function DirectMessage({ onClose }: DirectMessageProps) {
       return response;
     },
     onSuccess: () => {
+      // Refresh all data
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp-numbers"] });
       
-      // Force refresh to ensure immediate updates
+      // Force immediate refresh
       setTimeout(() => {
         queryClient.refetchQueries({ queryKey: ["/api/conversations"] });
       }, 500);
