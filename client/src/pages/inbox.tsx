@@ -6,7 +6,7 @@ import Header from "@/components/layout/header";
 import WorkingInbox from "@/components/inbox/working-inbox";
 import DirectMessage from "@/components/inbox/direct-message";
 import ErrorBoundary from "@/components/error-boundary";
-import { Plus } from "lucide-react";
+import { Plus, AlertCircle } from "lucide-react";
 
 
 export default function Inbox() {
@@ -53,7 +53,18 @@ export default function Inbox() {
           subtitle="Manage your WhatsApp conversations"
         />
         <main className="flex-1 overflow-auto p-6">
-          <ErrorBoundary>
+          <ErrorBoundary fallback={
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
+                <h3 className="text-xl font-semibold mb-2 text-gray-700">Error loading content</h3>
+                <p className="text-gray-500 mb-4">Something went wrong. Please refresh the page.</p>
+                <Button onClick={() => window.location.reload()}>
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          }>
             <WorkingInbox />
           </ErrorBoundary>
         </main>

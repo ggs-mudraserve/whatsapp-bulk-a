@@ -332,12 +332,13 @@ export default function WorkingInbox() {
 
   // Show error state
   if (conversationsError) {
+    console.error('Conversations error details:', conversationsError);
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
           <h3 className="text-xl font-semibold mb-2 text-gray-700">Unable to load conversations</h3>
-          <p className="text-gray-500 mb-4">Please check your connection and try again</p>
+          <p className="text-gray-500 mb-4">Error: {conversationsError?.message || 'Please check your connection and try again'}</p>
           <Button onClick={() => refetchConversations()}>
             Try Again
           </Button>
@@ -345,6 +346,17 @@ export default function WorkingInbox() {
       </div>
     );
   }
+
+  // Add error logging for debugging
+  console.log('WorkingInbox render state:', {
+    conversationsLoading,
+    conversationsError,
+    conversationsLength: conversations?.length,
+    selectedConversationId,
+    messagesLoading,
+    messagesError,
+    messagesLength: messages?.length
+  });
 
   return (
     <div className="h-full flex gap-6">
