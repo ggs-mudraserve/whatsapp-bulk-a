@@ -315,15 +315,37 @@ export default function WhatsAppSetupPersistent() {
               }
             </span>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={loadSessions}
-            className="border-gray-300"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={loadSessions}
+              className="border-gray-300"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/whatsapp/debug-sessions');
+                  const data = await response.json();
+                  console.log('Debug sessions:', data);
+                  toast({
+                    title: "Debug Info",
+                    description: `Found ${data.persistent.length} persistent and ${data.working.length} working sessions`,
+                  });
+                } catch (error) {
+                  console.error('Debug error:', error);
+                }
+              }}
+              className="border-gray-300"
+            >
+              Debug
+            </Button>
+          </div>
         </AlertDescription>
       </Alert>
 

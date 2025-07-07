@@ -1727,6 +1727,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await workingWhatsAppService.initializeWebSocket(httpServer);
   await persistentWhatsAppService.initializeWebSocket(httpServer);
   
+  // Debug endpoint to check session status
+  app.get('/api/whatsapp/debug-sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const persistentSessions = persistentWhatsAppService.getAllSessions();
+      const workingSessions = workingWhatsAppService.getAllSessions();
+      
+      console.log('=== SESSION DEBUG ===');
+      console.log(`Persistent sessions: ${persistentSessions.length}`);
+      persistentSessions.forEach(session => {
+        console.log(`  - ID: ${session.id}, Status: ${session.status}, Phone: ${session.phoneNumber}`);
+      });
+      
+      console.log(`Working sessions: ${workingSessions.length}`);
+      workingSessions.forEach(session => {
+        console.log(`  - ID: ${session.id}, Status: ${session.status}, Phone: ${session.phoneNumber}`);
+      });
+      
+      res.json({
+        persistent: persistentSessions.map(s => ({
+          id: s.id,
+          status: s.status,
+          phoneNumber: s.phoneNumber,
+          lastActivity: s.lastActivity
+        })),
+        working: workingSessions.map(s => ({
+          id: s.id,
+          status: s.status,
+          phoneNumber: s.phoneNumber,
+          lastActivity: s.lastActivity
+        }))
+      });
+    } catch (error) {
+      console.error('Debug sessions error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Direct QR generation endpoint for persistent WhatsApp
   app.post('/api/whatsapp/qr-persistent', isAuthenticated, async (req: any, res) => {
     try {
