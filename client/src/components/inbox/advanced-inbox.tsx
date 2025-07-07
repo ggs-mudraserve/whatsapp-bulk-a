@@ -95,11 +95,11 @@ export default function AdvancedInbox() {
   });
 
   const { data: messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useQuery({
-    queryKey: ['/api/messages', selectedConversationId],
+    queryKey: ['/api/conversations', selectedConversationId, 'messages'],
     queryFn: async () => {
       if (!selectedConversationId) return [];
       try {
-        return await apiRequest('GET', `/api/messages?conversationId=${selectedConversationId}`);
+        return await apiRequest('GET', `/api/conversations/${selectedConversationId}/messages`);
       } catch (error) {
         return []; // Return empty array instead of throwing
       }
