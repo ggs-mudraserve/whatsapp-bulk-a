@@ -1201,6 +1201,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete WhatsApp session
+  app.delete('/api/whatsapp/delete-session/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId } = req.params;
+      
+      console.log(`Deleting session: ${sessionId} for user: ${userId}`);
+      
+      // Delete from persistent WhatsApp service
+      const deleteResult = await persistentWhatsAppService.deleteSession(sessionId);
+      
+      if (deleteResult.success) {
+        res.json({
+          success: true,
+          message: 'Session deleted successfully'
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          message: 'Session not found'
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to delete session' 
+      });
+    }
+  });
+
+  // Delete user account
+  app.delete('/api/auth/delete-account', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      console.log(`Deleting account for user: ${userId}`);
+      
+      // Delete all user data in sequence
+      const conversations = await storage.getConversations(userId);
+      for (const conversation of conversations) {
+        await storage.deleteConversation(conversation.id);
+      }
+      
+      const campaigns = await storage.getCampaigns(userId);
+      for (const campaign of campaigns) {
+        await storage.deleteCampaign(campaign.id);
+      }
+      
+      const templates = await storage.getTemplates(userId);
+      for (const template of templates) {
+        await storage.deleteTemplate(template.id);
+      }
+      
+      const contacts = await storage.getContacts(userId);
+      const contactIds = contacts.map(c => c.id);
+      if (contactIds.length > 0) {
+        await storage.deleteContacts(contactIds);
+      }
+      
+      const whatsappNumbers = await storage.getWhatsappNumbers(userId);
+      for (const number of whatsappNumbers) {
+        await storage.deleteWhatsappNumber(number.id);
+      }
+      
+      // Delete all WhatsApp sessions for this user
+      const sessions = persistentWhatsAppService.getSessionsByUser(userId);
+      for (const session of sessions) {
+        await persistentWhatsAppService.deleteSession(session.id);
+      }
+      
+      // Finally delete user record
+      await storage.deleteUser(userId);
+      
+      res.json({
+        success: true,
+        message: 'Account deleted successfully'
+      });
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to delete account' 
+      });
+    }
+  });
+
   // Check active WhatsApp sessions with connection status
   app.get('/api/whatsapp/session-status/:sessionId', isAuthenticated, async (req: any, res) => {
     try {

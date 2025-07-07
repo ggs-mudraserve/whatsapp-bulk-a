@@ -299,6 +299,57 @@ export default function WhatsAppSetupPersistent() {
     }
   };
 
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      const response = await fetch(`/api/whatsapp/delete-session/${sessionId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        loadSessions();
+        toast({
+          title: "Session Deleted",
+          description: "WhatsApp session has been deleted permanently"
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete session",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!confirm("Are you sure you want to delete your account? This will permanently delete all your data including WhatsApp sessions, contacts, campaigns, and messages. This action cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/auth/delete-account', {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Account Deleted",
+          description: "Your account has been deleted successfully"
+        });
+        // Redirect to login after account deletion
+        window.location.href = '/login';
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete account",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'connected':
@@ -451,7 +502,7 @@ export default function WhatsAppSetupPersistent() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     {getStatusBadge(session.status)}
                     {session.status === 'connected' ? (
                       <Button
@@ -471,6 +522,14 @@ export default function WhatsAppSetupPersistent() {
                         Show QR
                       </Button>
                     ) : null}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteSession(session.id)}
+                      className="bg-red-50 text-red-700 border-red-300 hover:bg-red-100"
+                    >
+                      Delete
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -512,6 +571,21 @@ export default function WhatsAppSetupPersistent() {
               Authentication data is securely stored and automatically restored.
             </AlertDescription>
           </Alert>
+
+          <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <h4 className="font-medium text-red-800 mb-2">Account Management</h4>
+            <p className="text-sm text-red-700 mb-3">
+              Permanently delete your account and all associated data including WhatsApp sessions, contacts, campaigns, and messages.
+            </p>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDeleteAccount}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Account
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

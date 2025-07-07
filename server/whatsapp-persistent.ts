@@ -520,6 +520,56 @@ class PersistentWhatsAppService {
     return Array.from(this.sessions.values());
   }
 
+  getSessionsByUser(userId: string): PersistentWhatsAppSession[] {
+    return Array.from(this.sessions.values()).filter(session => session.userId === userId);
+  }
+
+  async deleteSession(sessionId: string): Promise<{ success: boolean; message?: string }> {
+    console.log(`Attempting to delete session: ${sessionId}`);
+    
+    try {
+      const session = this.sessions.get(sessionId);
+      
+      if (!session) {
+        console.log(`Session ${sessionId} not found in memory`);
+        return { success: false, message: 'Session not found' };
+      }
+
+      // Disconnect and cleanup client
+      const client = this.clients.get(sessionId);
+      if (client) {
+        try {
+          await client.destroy();
+          console.log(`Client destroyed for session ${sessionId}`);
+        } catch (error) {
+          console.log(`Error destroying client for ${sessionId}:`, error);
+        }
+        this.clients.delete(sessionId);
+      }
+
+      // Remove from memory
+      this.sessions.delete(sessionId);
+
+      // Delete auth directory if it exists
+      if (session.authPath) {
+        try {
+          if (fs.existsSync(session.authPath)) {
+            fs.rmSync(session.authPath, { recursive: true, force: true });
+            console.log(`Deleted auth directory: ${session.authPath}`);
+          }
+        } catch (error) {
+          console.log(`Error deleting auth directory ${session.authPath}:`, error);
+        }
+      }
+
+      console.log(`✓ Successfully deleted session ${sessionId}`);
+      return { success: true, message: 'Session deleted successfully' };
+    } catch (error) {
+      console.error(`Error deleting session ${sessionId}:`, error);
+      return { success: false, message: 'Failed to delete session' };
+    }
+  }
+
   async sendMessage(sessionId: string, to: string, message: string) {
     console.log(`Attempting to send message via session ${sessionId} to ${to}: ${message}`);
     

@@ -186,3 +186,23 @@ Changelog:
 - July 07, 2025. Implemented real-time sync with 2-second conversation updates and 1-second message updates
 - July 07, 2025. Added modern WhatsApp-style UI with avatars, status indicators, and message status icons
 - July 07, 2025. Enhanced message sending with immediate UI feedback and proper error handling
+- July 07, 2025. Added Delete Session buttons with confirmation - users can permanently delete WhatsApp sessions
+- July 07, 2025. Implemented Delete Account functionality with comprehensive data cleanup across all user resources
+- July 07, 2025. Enhanced session management with proper cleanup of auth directories and client resources
+- July 07, 2025. Fixed WhatsApp connection persistence issue - sessions now stay alive properly for QR scanning
+- July 07, 2025. Implemented intelligent cleanup logic that prevents premature session termination
+- July 07, 2025. Added real-time connection status polling to track successful QR scans
+- July 07, 2025. Enhanced frontend with live connection monitoring and success feedback
+- July 07, 2025. WhatsApp integration now works end-to-end: QR generation → scanning → connection confirmation
+- July 07, 2025. Switched from Baileys to whatsapp-web.js library as requested by user for better stability
+- July 07, 2025. Fixed ES module import issues with whatsapp-web.js using createRequire for CommonJS compatibility
+- July 07, 2025. Implemented robust Puppeteer-based WhatsApp client with proper session management
+- July 07, 2025. Enhanced multi-number support with proper session isolation and management
+- July 07, 2025. Added connected numbers dashboard with real-time status monitoring
+- July 07, 2025. Implemented session disconnect functionality to prevent conflicts between multiple numbers
+- July 07, 2025. Added session limits (5 per user) and improved session persistence
+- July 07, 2025. Completely rebuilt inbox system with AdvancedInbox component for better reliability
+- July 07, 2025. Removed broken conversation context and chat interface components
+- July 07, 2025. Implemented real-time sync with 2-second conversation updates and 1-second message updates
+- July 07, 2025. Added modern WhatsApp-style UI with avatars, status indicators, and message status icons
+- July 07, 2025. Enhanced message sending with immediate UI feedback and proper error handling
