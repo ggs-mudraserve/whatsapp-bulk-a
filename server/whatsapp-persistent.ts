@@ -353,7 +353,7 @@ class PersistentWhatsAppService {
       }
     });
 
-    client.on('ready', () => {
+    client.on('ready', async () => {
       console.log(`WhatsApp client ready for session ${sessionId}`);
       
       const info = client.info;
@@ -361,6 +361,34 @@ class PersistentWhatsAppService {
       session.status = 'connected';
       session.lastActivity = new Date();
       this.sessions.set(sessionId, session);
+
+      // Save WhatsApp number to database
+      try {
+        const { storage } = await import('./storage');
+        const existingNumbers = await storage.getWhatsappNumbers(session.userId);
+        const existingNumber = existingNumbers.find(wn => wn.phoneNumber === session.phoneNumber);
+        
+        if (!existingNumber) {
+          await storage.createWhatsappNumber({
+            userId: session.userId,
+            phoneNumber: session.phoneNumber,
+            displayName: info.pushname || session.phoneNumber,
+            status: 'connected',
+            connectionType: 'qr_code',
+            lastActivity: new Date()
+          });
+          console.log(`✓ Saved WhatsApp number ${session.phoneNumber} to database`);
+        } else {
+          // Update existing number status
+          await storage.updateWhatsappNumber(existingNumber.id, {
+            status: 'connected',
+            lastActivity: new Date()
+          });
+          console.log(`✓ Updated WhatsApp number ${session.phoneNumber} status to connected`);
+        }
+      } catch (error) {
+        console.error('Error saving WhatsApp number to database:', error);
+      }
 
       if (session.socket) {
         session.socket.send(JSON.stringify({
@@ -436,15 +464,19 @@ class PersistentWhatsAppService {
           console.log(`Created new contact for ${fromNumber}`);
         }
         
+        // Find the WhatsApp number record for this session
+        let whatsappNumbers = await storage.getWhatsappNumbers(session.userId);
+        let whatsappNumber = whatsappNumbers.find(wn => wn.phoneNumber === session.phoneNumber);
+        
         // Find or create conversation
         let conversations = await storage.getConversations(session.userId);
-        let conversation = conversations.find(c => c.contactId === contact.id);
+        let conversation = conversations.find(c => c.contactId === contact.id && c.whatsappNumberId === whatsappNumber?.id);
         
         if (!conversation) {
           conversation = await storage.createConversation({
             userId: session.userId,
             contactId: contact.id,
-            whatsappNumberId: null, // No specific WhatsApp number reference
+            whatsappNumberId: whatsappNumber?.id || null, // Link to specific WhatsApp number
             contactName: contact.name,
             contactPhone: contact.phoneNumber,
             lastMessage: messageBody,

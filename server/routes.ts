@@ -1118,9 +1118,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // List active WhatsApp sessions
-  app.get('/api/whatsapp/active-sessions', isAuthenticated, (req: any, res) => {
+  app.get('/api/whatsapp/active-sessions', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      
+      // Get WhatsApp numbers from database to match with sessions
+      const whatsappNumbers = await storage.getWhatsappNumbers(userId);
       
       // Get sessions from persistent and working services
       const persistentSessions = persistentWhatsAppService.getAllSessions();
@@ -1128,30 +1131,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Active sessions check: ${persistentSessions.length} persistent, ${workingSessions.length} working`);
       
-      // Filter for user's sessions and format them
+      // Filter for user's sessions and format them with database IDs
       const userPersistentSessions = persistentSessions
         .filter(session => session.userId === userId)
-        .map(session => ({
-          id: session.id,
-          sessionId: session.id,
-          phoneNumber: session.phoneNumber || 'Connecting...',
-          status: session.status,
-          connected: session.status === 'connected',
-          lastActivity: session.lastActivity,
-          type: 'persistent'
-        }));
+        .map(session => {
+          const dbNumber = whatsappNumbers.find(wn => wn.phoneNumber === session.phoneNumber);
+          return {
+            id: session.id,
+            sessionId: session.id,
+            phoneNumber: session.phoneNumber || 'Connecting...',
+            status: session.status,
+            connected: session.status === 'connected',
+            lastActivity: session.lastActivity,
+            type: 'persistent',
+            whatsappNumberId: dbNumber?.id || null
+          };
+        });
         
       const userWorkingSessions = workingSessions
         .filter(session => session.userId === userId)
-        .map(session => ({
-          id: session.id,
-          sessionId: session.id,
-          phoneNumber: session.phoneNumber || 'Connecting...',
-          status: session.status,
-          connected: session.status === 'connected',
-          lastActivity: session.lastActivity,
-          type: 'working'
-        }));
+        .map(session => {
+          const dbNumber = whatsappNumbers.find(wn => wn.phoneNumber === session.phoneNumber);
+          return {
+            id: session.id,
+            sessionId: session.id,
+            phoneNumber: session.phoneNumber || 'Connecting...',
+            status: session.status,
+            connected: session.status === 'connected',
+            lastActivity: session.lastActivity,
+            type: 'working',
+            whatsappNumberId: dbNumber?.id || null
+          };
+        });
 
       const allUserSessions = [...userPersistentSessions, ...userWorkingSessions];
       const connectedSessions = allUserSessions.filter(s => s.connected);

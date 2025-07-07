@@ -125,7 +125,7 @@ export default function AdvancedInbox() {
         method: 'POST',
         body: {
           name: contactName || cleanPhone,
-          phone: cleanPhone,
+          phoneNumber: cleanPhone,
           tags: [],
           status: 'active'
         }
@@ -178,8 +178,13 @@ export default function AdvancedInbox() {
     if (selectedNumber === 'all') {
       return matchesSearch;
     } else {
-      // Here you would filter based on which WhatsApp number the conversation belongs to
-      // For now, we'll show all conversations as the backend doesn't yet track which number received each message
+      // Find the selected session and match by whatsappNumberId
+      const selectedSession = whatsappSessions?.sessions?.find(s => s.id === selectedNumber);
+      if (selectedSession) {
+        // Match conversations that belong to this WhatsApp number
+        const matchesNumber = conv.whatsappNumberId === selectedSession.whatsappNumberId;
+        return matchesSearch && matchesNumber;
+      }
       return matchesSearch;
     }
   });
