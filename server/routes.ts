@@ -454,12 +454,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/conversations/:id/messages', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const conversationId = parseInt(req.params.id);
       const validatedData = insertMessageSchema.parse({
         ...req.body,
         conversationId,
+        timestamp: new Date(),
       });
+
+      // Get conversation details to find the recipient
+      const conversations = await storage.getConversations(userId);
+      const conversation = conversations.find(conv => conv.id === conversationId);
+      
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      // Create message record
       const message = await storage.createMessage(validatedData);
+
+      // Try to send via WhatsApp if it's an outgoing message
+      if (validatedData.direction === 'outgoing') {
+        try {
+          // Get user's WhatsApp numbers to find an active session
+          const whatsappNumbers = await storage.getWhatsappNumbers(userId);
+          
+          for (const number of whatsappNumbers) {
+            const sessionData = number.sessionData as any;
+            const sessionId = sessionData?.sessionId;
+            
+            if (sessionId) {
+              try {
+                await workingWhatsAppService.sendMessage(
+                  sessionId, 
+                  conversation.contactPhone.replace('+', ''), 
+                  validatedData.content
+                );
+                console.log(`Message sent via WhatsApp to ${conversation.contactPhone}`);
+                break; // Success, stop trying other numbers
+              } catch (sendError) {
+                console.error(`Failed to send via session ${sessionId}:`, sendError);
+                continue; // Try next session
+              }
+            }
+          }
+        } catch (whatsappError) {
+          console.error('WhatsApp send error:', whatsappError);
+          // Message is still saved to database even if WhatsApp send fails
+        }
+      }
+
+      // Update conversation with latest message
+      await storage.updateConversation(conversationId, {
+        lastMessage: validatedData.content,
+        lastMessageAt: new Date(),
+      });
+
       res.json(message);
     } catch (error) {
       console.error("Error creating message:", error);
