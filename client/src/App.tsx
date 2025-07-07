@@ -53,7 +53,7 @@ function Router() {
           <Route path="/ai-agents" component={AIAgents} />
           <Route path="/features" component={FeaturesOverview} />
           <Route path="/settings" component={Settings} />
-          <Route component={NotFound} />
+          <Route component={() => <div className="p-4 text-center text-gray-500">Page not found. Please check the URL.</div>} />
         </>
       )}
     </Switch>

@@ -52,15 +52,14 @@ export default function AdvancedInbox() {
 
 
   // Fetch WhatsApp numbers for dropdown with real-time sync
-  const { data: whatsappSessions = [], error: sessionsError } = useQuery({
+  const { data: whatsappSessions = [] } = useQuery({
     queryKey: ['/api/whatsapp/active-sessions'],
     refetchInterval: 2000, // Update every 2 seconds for real-time sync
     refetchIntervalInBackground: true,
-    retry: 3,
-    retryDelay: 1000,
-    onError: (error) => {
-      console.error('Failed to fetch WhatsApp sessions:', error);
-      // Don't show error toast for background refresh failures
+    retry: 1,
+    retryDelay: 500,
+    onError: () => {
+      // Silently handle errors to prevent UI disruption
     }
   });
 
@@ -72,37 +71,34 @@ export default function AdvancedInbox() {
   }, [whatsappSessions]);
 
   // Real-time data fetching with error handling
-  const { data: conversations = [], isLoading: conversationsLoading, refetch: refetchConversations, error: conversationsError } = useQuery({
+  const { data: conversations = [], isLoading: conversationsLoading, refetch: refetchConversations } = useQuery({
     queryKey: ['/api/conversations'],
     refetchInterval: 2000, // Update every 2 seconds
     refetchIntervalInBackground: true,
-    retry: 3,
-    retryDelay: 1000,
-    onError: (error) => {
-      console.error('Failed to fetch conversations:', error);
-      // Don't show error toast for background refresh failures
+    retry: 1,
+    retryDelay: 500,
+    onError: () => {
+      // Silently handle errors to prevent UI disruption
     }
   });
 
-  const { data: messages = [], isLoading: messagesLoading, refetch: refetchMessages, error: messagesError } = useQuery({
+  const { data: messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useQuery({
     queryKey: ['/api/messages', selectedConversationId],
     queryFn: async () => {
       if (!selectedConversationId) return [];
       try {
         return await apiRequest('GET', `/api/messages?conversationId=${selectedConversationId}`);
       } catch (error) {
-        console.error('Failed to fetch messages:', error);
         return []; // Return empty array instead of throwing
       }
     },
     enabled: !!selectedConversationId,
     refetchInterval: 1000, // Update messages every 1 second when conversation is open
     refetchIntervalInBackground: true,
-    retry: 3,
-    retryDelay: 1000,
-    onError: (error) => {
-      console.error('Failed to fetch messages:', error);
-      // Don't show error toast for background refresh failures
+    retry: 1,
+    retryDelay: 500,
+    onError: () => {
+      // Silently handle errors to prevent UI disruption
     }
   });
 

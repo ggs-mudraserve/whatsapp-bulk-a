@@ -49,6 +49,10 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       staleTime: Infinity,
       retry: false,
+      onError: (error: any) => {
+        console.warn('TanStack Query error:', error);
+        // Silently handle errors to prevent 404 fallbacks
+      },
     },
     mutations: {
       retry: false,
