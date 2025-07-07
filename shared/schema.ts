@@ -111,7 +111,9 @@ export const campaigns = pgTable("campaigns", {
   name: varchar("name").notNull(),
   message: text("message"),
   templateId: integer("template_id").references(() => templates.id, { onDelete: "set null" }),
+  templateIds: jsonb("template_ids").$type<number[]>().default([]),
   whatsappNumberId: integer("whatsapp_number_id").references(() => whatsappNumbers.id, { onDelete: "set null" }),
+  whatsappNumberIds: jsonb("whatsapp_number_ids").$type<number[]>().default([]),
   status: varchar("status").default("draft"), // draft, scheduled, active, paused, completed, cancelled
   totalContacts: integer("total_contacts").default(0),
   messagesSent: integer("messages_sent").default(0),

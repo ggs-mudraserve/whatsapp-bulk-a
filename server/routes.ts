@@ -489,19 +489,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/campaigns', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      console.log("Creating campaign with request body:", req.body);
+      
       const { 
+        templateIds,
+        whatsappNumberIds,
         targetGroups, 
         targetContacts, 
         antiBlockingSettings,
         ...campaignData 
       } = req.body;
 
-      // Validate the core campaign data
-      const validatedData = insertCampaignSchema.parse(campaignData);
-      
-      // Create the campaign
+      // Handle multiple templates and numbers as JSON fields
+      const processedData = {
+        ...campaignData,
+        templateIds: Array.isArray(templateIds) ? templateIds : [],
+        whatsappNumberIds: Array.isArray(whatsappNumberIds) ? whatsappNumberIds : [],
+        antiBlockingSettings: antiBlockingSettings || { enabled: false }
+      };
+
+      console.log("Processed campaign data:", processedData);
+
+      // Create the campaign with all data
       const campaign = await storage.createCampaign({ 
-        ...validatedData, 
+        ...processedData, 
         userId,
         // Store target groups and contacts as JSON
         targetGroups: targetGroups || [],

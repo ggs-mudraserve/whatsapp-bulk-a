@@ -134,11 +134,18 @@ export class DatabaseStorage implements IStorage {
 
   // WhatsApp numbers
   async getWhatsappNumbers(userId: string): Promise<WhatsappNumber[]> {
-    return await db
+    const results = await db
       .select()
       .from(whatsappNumbers)
       .where(eq(whatsappNumbers.userId, userId))
       .orderBy(desc(whatsappNumbers.createdAt));
+    
+    // Remove duplicates by phone number, keeping the most recent one
+    const uniqueNumbers = results.filter((num, index, arr) => 
+      arr.findIndex(n => n.phoneNumber === num.phoneNumber) === index
+    );
+    
+    return uniqueNumbers;
   }
 
   async createWhatsappNumber(number: InsertWhatsappNumber): Promise<WhatsappNumber> {

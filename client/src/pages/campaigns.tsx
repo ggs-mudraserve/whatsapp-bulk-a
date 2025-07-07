@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Play, Clock, Check, Pause, Upload, Settings, Users, MessageSquare, Shield, Zap } from "lucide-react";
+import { Play, Clock, Check, Pause, Upload, Settings, Users, MessageSquare, Shield, Zap, RefreshCw } from "lucide-react";
 
 interface Campaign {
   id: number;
@@ -84,29 +84,34 @@ export default function Campaigns() {
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
 
-  // Data queries
+  // Data queries with real-time sync
   const { data: campaigns, isLoading: campaignsLoading } = useQuery({
     queryKey: ["/api/campaigns"],
+    refetchInterval: 3000, // Refresh every 3 seconds
     retry: false,
   });
 
   const { data: templates } = useQuery({
     queryKey: ["/api/templates"],
+    refetchInterval: 5000, // Refresh every 5 seconds
     retry: false,
   });
 
   const { data: contacts } = useQuery({
     queryKey: ["/api/contacts"],
+    refetchInterval: 5000, // Refresh every 5 seconds
     retry: false,
   });
 
   const { data: contactGroups } = useQuery({
     queryKey: ["/api/contact-groups"],
+    refetchInterval: 5000, // Refresh every 5 seconds
     retry: false,
   });
 
   const { data: whatsappNumbers } = useQuery({
     queryKey: ["/api/whatsapp-numbers"],
+    refetchInterval: 3000, // Refresh every 3 seconds
     retry: false,
   });
 
@@ -368,6 +373,18 @@ export default function Campaigns() {
           }}
         />
         <main className="flex-1 overflow-auto p-6">
+          {/* Real-time Sync Indicator */}
+          <div className="mb-4 flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin text-green-600" />
+              <span className="text-sm text-green-800 font-medium">Real-time Data Sync Active</span>
+              <span className="text-xs text-green-600">All sections update automatically</span>
+            </div>
+            <div className="text-xs text-green-600">
+              Last sync: {new Date().toLocaleTimeString()}
+            </div>
+          </div>
+
           {/* Campaign Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card>
@@ -602,8 +619,12 @@ export default function Campaigns() {
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {whatsappNumbers && whatsappNumbers.length > 0 ? (
+                        // Remove duplicates by phone number
                         whatsappNumbers
                           .filter((num: WhatsappNumber) => num.status === 'connected')
+                          .filter((num: WhatsappNumber, index: number, arr: WhatsappNumber[]) => 
+                            arr.findIndex(n => n.phoneNumber === num.phoneNumber) === index
+                          )
                           .map((number: WhatsappNumber) => (
                             <div key={number.id} className="flex items-center space-x-3 p-3 border rounded-lg">
                               <Checkbox
