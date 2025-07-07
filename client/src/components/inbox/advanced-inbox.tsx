@@ -92,7 +92,8 @@ export default function AdvancedInbox() {
         content: messageData.content,
         direction: 'outgoing',
         messageType: 'text',
-        status: 'sent'
+        status: 'sent',
+        selectedWhatsAppNumber: selectedNumber !== 'all' ? selectedNumber : null
       });
     },
     onSuccess: (response) => {
@@ -199,58 +200,55 @@ export default function AdvancedInbox() {
     }
   }, [selectedConversationId]);
 
-  // Real-time notification system
+  // Real-time notification system with proper state tracking
+  const [previousConversationCount, setPreviousConversationCount] = useState(0);
+  const [previousMessageCounts, setPreviousMessageCounts] = useState<{ [key: number]: number }>({});
+
   useEffect(() => {
-    let previousConversationCount = conversations.length;
-    let previousMessageCounts: { [key: number]: number } = {};
-    
-    // Initialize message counts
+    // Check for new conversations
+    if (conversations.length > previousConversationCount && previousConversationCount > 0) {
+      toast({
+        title: "New conversation",
+        description: "You have a new WhatsApp conversation",
+      });
+    }
+
+    // Check for new messages in existing conversations
     conversations.forEach(conv => {
-      previousMessageCounts[conv.id] = conv.unreadCount || 0;
-    });
-
-    return () => {
-      // Check for new conversations
-      if (conversations.length > previousConversationCount) {
-        toast({
-          title: "New conversation",
-          description: "You have a new WhatsApp conversation",
-        });
-      }
-
-      // Check for new messages in existing conversations
-      conversations.forEach(conv => {
-        const previousCount = previousMessageCounts[conv.id] || 0;
-        const currentCount = conv.unreadCount || 0;
+      const previousCount = previousMessageCounts[conv.id] || 0;
+      const currentCount = conv.unreadCount || 0;
+      
+      if (currentCount > previousCount && previousCount >= 0) {
+        const newMessages = currentCount - previousCount;
         
-        if (currentCount > previousCount) {
-          const newMessages = currentCount - previousCount;
-          
-          // Don't show notification for currently selected conversation
-          if (conv.id !== selectedConversationId) {
-            toast({
-              title: `New message${newMessages > 1 ? 's' : ''} from ${conv.contactName}`,
-              description: conv.lastMessage || 'New message received',
-            });
+        // Don't show notification for currently selected conversation
+        if (conv.id !== selectedConversationId) {
+          toast({
+            title: `New message${newMessages > 1 ? 's' : ''} from ${conv.contactName}`,
+            description: conv.lastMessage || 'New message received',
+          });
 
-            // Browser notification
-            if (Notification.permission === 'granted') {
-              new Notification(`WhatsApp Pro - ${conv.contactName}`, {
-                body: conv.lastMessage || 'New message received',
-                icon: '/favicon.ico',
-              });
-            } else if (Notification.permission !== 'denied') {
-              Notification.requestPermission();
-            }
+          // Browser notification
+          if (Notification.permission === 'granted') {
+            new Notification(`WhatsApp Pro - ${conv.contactName}`, {
+              body: conv.lastMessage || 'New message received',
+              icon: '/favicon.ico',
+            });
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission();
           }
         }
-        
-        previousMessageCounts[conv.id] = currentCount;
-      });
+      }
+    });
 
-      previousConversationCount = conversations.length;
-    };
-  }, [conversations, selectedConversationId, toast]);
+    // Update state for next comparison
+    setPreviousConversationCount(conversations.length);
+    const newMessageCounts: { [key: number]: number } = {};
+    conversations.forEach(conv => {
+      newMessageCounts[conv.id] = conv.unreadCount || 0;
+    });
+    setPreviousMessageCounts(newMessageCounts);
+  }, [conversations, selectedConversationId, toast, previousConversationCount, previousMessageCounts]);
 
   // Filter conversations based on search and selected number
   const filteredConversations = conversations.filter((conv: Conversation) => {

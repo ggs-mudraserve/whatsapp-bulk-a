@@ -560,22 +560,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`- Persistent Session ${session.id}, phone: ${session.phoneNumber}, status: ${session.status}`);
           });
 
-          // Try persistent sessions first
-          for (const session of persistentSessions) {
-            if (session.status === 'connected') {
-              try {
-                await persistentWhatsAppService.sendMessage(
-                  session.id, 
-                  conversation.contactPhone.replace('+', ''), 
-                  validatedData.content
-                );
-                console.log(`✓ Message sent via WhatsApp to ${conversation.contactPhone} using persistent session ${session.id}`);
-                messageSent = true;
-                break;
-              } catch (sendError) {
-                console.error(`✗ Failed to send via persistent session ${session.id}:`, sendError);
-                continue;
-              }
+          // If a specific WhatsApp number is selected, use that session
+          const selectedWhatsAppNumber = req.body.selectedWhatsAppNumber;
+          let targetSession = null;
+          
+          if (selectedWhatsAppNumber) {
+            // Find session for specific WhatsApp number
+            targetSession = persistentSessions.find(session => 
+              session.phoneNumber === selectedWhatsAppNumber && session.status === 'connected'
+            );
+            console.log(`Looking for specific session with phone: ${selectedWhatsAppNumber}, found: ${targetSession ? 'Yes' : 'No'}`);
+          }
+          
+          // Try specific session first, then fallback to any connected session
+          const sessionsToTry = targetSession ? [targetSession] : persistentSessions.filter(s => s.status === 'connected');
+          
+          for (const session of sessionsToTry) {
+            try {
+              await persistentWhatsAppService.sendMessage(
+                session.id, 
+                conversation.contactPhone.replace('+', ''), 
+                validatedData.content
+              );
+              console.log(`✓ Message sent via WhatsApp to ${conversation.contactPhone} using persistent session ${session.id} (phone: ${session.phoneNumber})`);
+              messageSent = true;
+              break;
+            } catch (sendError) {
+              console.error(`✗ Failed to send via persistent session ${session.id}:`, sendError);
+              continue;
             }
           }
 
@@ -680,6 +692,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating message:", error);
       res.status(500).json({ message: "Failed to create message" });
+    }
+  });
+
+  // Mark conversation as read
+  app.patch('/api/conversations/:id/mark-read', isAuthenticated, async (req: any, res) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      // Verify the conversation belongs to the user
+      const conversations = await storage.getConversations(userId);
+      const conversation = conversations.find(c => c.id === conversationId);
+      
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      // Mark all messages in the conversation as read
+      await storage.markMessagesAsRead(conversationId);
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking conversation as read:", error);
+      res.status(500).json({ message: "Failed to mark conversation as read" });
     }
   });
 
