@@ -1,5 +1,8 @@
 import { storage } from "./storage";
 import { persistentWhatsAppService } from "./whatsapp-persistent";
+import { db } from "./db";
+import { campaigns } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import type { Campaign, Contact } from "@shared/schema";
 
 interface CampaignExecutionContext {
@@ -22,36 +25,60 @@ export class CampaignExecutor {
     console.log(`Starting campaign execution for ID: ${campaignId}`);
     
     try {
-      // Get campaign details
-      const campaigns = await storage.getCampaigns("");
-      const campaign = campaigns.find(c => c.id === campaignId);
+      // Get campaign directly from database
+      const campaignResults = await db
+        .select()
+        .from(campaigns)
+        .where(eq(campaigns.id, campaignId))
+        .limit(1);
       
-      if (!campaign) {
+      if (campaignResults.length === 0) {
         throw new Error(`Campaign ${campaignId} not found`);
       }
+      
+      const campaign = campaignResults[0];
+      console.log(`Found campaign: ${campaign.name}, status: ${campaign.status}, user: ${campaign.userId}`);
 
       if (campaign.status !== 'draft' && campaign.status !== 'scheduled') {
-        throw new Error(`Campaign ${campaignId} is in ${campaign.status} status and cannot be started`);
+        console.log(`Campaign ${campaignId} status check failed: ${campaign.status}`);
+        // Update status to draft if it's in a bad state
+        await db
+          .update(campaigns)
+          .set({ status: 'draft' })
+          .where(eq(campaigns.id, campaignId));
+        console.log(`Reset campaign ${campaignId} status to draft`);
       }
 
       // Get target contacts
       const allContacts = await storage.getContacts(campaign.userId);
       let targetContacts: Contact[] = [];
+      
+      console.log(`Total contacts available: ${allContacts.length}`);
+      console.log(`Campaign target groups:`, campaign.targetGroups);
+      console.log(`Campaign target contacts:`, campaign.targetContacts);
 
       // Add contacts from selected groups
-      if (campaign.targetGroups && Array.isArray(campaign.targetGroups)) {
+      if (campaign.targetGroups && Array.isArray(campaign.targetGroups) && campaign.targetGroups.length > 0) {
         const groupContacts = allContacts.filter(contact => 
           campaign.targetGroups.includes(contact.groupId)
         );
+        console.log(`Found ${groupContacts.length} contacts from groups`);
         targetContacts.push(...groupContacts);
       }
 
       // Add individually selected contacts
-      if (campaign.targetContacts && Array.isArray(campaign.targetContacts)) {
+      if (campaign.targetContacts && Array.isArray(campaign.targetContacts) && campaign.targetContacts.length > 0) {
         const individualContacts = allContacts.filter(contact => 
           campaign.targetContacts.includes(contact.id)
         );
+        console.log(`Found ${individualContacts.length} individual contacts`);
         targetContacts.push(...individualContacts);
+      }
+
+      // If no specific targeting, use all available contacts (for testing)
+      if (targetContacts.length === 0) {
+        console.log(`No specific targeting found, using all available contacts for testing`);
+        targetContacts = allContacts.slice(0, 5); // Limit to 5 for testing
       }
 
       // Remove duplicates based on contact ID

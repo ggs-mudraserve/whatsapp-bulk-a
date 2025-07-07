@@ -381,7 +381,7 @@ export default function Campaigns() {
               <span className="text-xs text-green-600">All sections update automatically</span>
             </div>
             <div className="text-xs text-green-600">
-              Last sync: {new Date().toLocaleTimeString()}
+              Campaigns • Templates • Contacts • Numbers
             </div>
           </div>
 
