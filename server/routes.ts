@@ -635,40 +635,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       global.activeSessions = global.activeSessions || new Map();
       
       const cleanup = (immediate = false) => {
+        if (!sessionActive) return; // Prevent multiple cleanups
+        
         sessionActive = false;
         global.activeSessions?.delete(activeSessionKey);
         
         if (immediate) {
           try {
-            // Check if socket is still connected before trying to logout
-            if (socket.ws && socket.ws.readyState === 1) {
+            // Only logout if QR wasn't generated or connection failed
+            if (!qrGenerated && socket.ws && socket.ws.readyState === 1) {
               socket.logout();
             }
           } catch (e) {
             // Ignore logout errors - socket might already be closed
           }
         } else {
-          // Keep socket alive for 2 minutes to allow scanning
+          // Keep socket alive for 5 minutes to allow scanning if QR was generated
+          const delayTime = qrGenerated ? 300000 : 120000; // 5 minutes vs 2 minutes
           setTimeout(() => {
             try {
-              // Check if socket is still connected before trying to logout
               if (socket.ws && socket.ws.readyState === 1) {
                 socket.logout();
               }
             } catch (e) {
               // Ignore logout errors - socket might already be closed
             }
-          }, 120000);
+          }, delayTime);
         }
         
-        // Clean auth directory after delay
+        // Clean auth directory after longer delay to allow successful connections
         setTimeout(() => {
           try {
             if (fs.existsSync(authDir)) {
               fs.rmSync(authDir, { recursive: true, force: true });
             }
           } catch (e) {}
-        }, 180000); // 3 minutes
+        }, qrGenerated ? 600000 : 180000); // 10 minutes vs 3 minutes
         
         if (connectionTimeout) {
           clearTimeout(connectionTimeout);
@@ -727,17 +729,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (connection === 'open') {
             console.log(`WhatsApp connected successfully for session ${sessionId}`);
-            // Connection successful, but don't cleanup - let it stay connected
+            // Store phone number info if available
+            if (socket.user?.id) {
+              const phoneNumber = socket.user.id.split(':')[0];
+              console.log(`Connected phone number: ${phoneNumber}`);
+              
+              // Update session with connection info
+              const session = global.activeSessions.get(activeSessionKey);
+              if (session) {
+                session.phoneNumber = phoneNumber;
+                session.connected = true;
+                session.connectedAt = new Date();
+              }
+            }
+            // Connection successful - extend session lifetime
+            clearTimeout(connectionTimeout);
           }
           
           if (connection === 'close') {
             console.log(`WhatsApp connection closed for session ${sessionId}`);
-            cleanup(false); // Use graceful cleanup instead of immediate
-            if (!qrGenerated && !res.headersSent) {
-              res.status(500).json({ 
-                success: false,
-                message: 'Connection closed before QR generation' 
-              });
+            // Only cleanup if QR wasn't generated successfully or if connection failed after open
+            if (!qrGenerated) {
+              cleanup(false);
+              if (!res.headersSent) {
+                res.status(500).json({ 
+                  success: false,
+                  message: 'Connection closed before QR generation' 
+                });
+              }
+            } else {
+              // QR was generated, this is normal - keep session alive for scanning
+              console.log(`QR generated successfully, connection close is expected - keeping session alive`);
             }
           }
         } catch (eventError) {
@@ -779,7 +801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Check active WhatsApp sessions
+  // Check active WhatsApp sessions with connection status
   app.get('/api/whatsapp/session-status/:sessionId', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -791,16 +813,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (session) {
         const timeElapsed = Date.now() - session.createdAt.getTime();
-        const remainingTime = Math.max(0, 120000 - timeElapsed); // 2 minutes
+        const maxTime = session.connected ? 600000 : 300000; // 10 min if connected, 5 min if not
+        const remainingTime = Math.max(0, maxTime - timeElapsed);
         
         res.json({
           active: true,
+          connected: session.connected || false,
+          phoneNumber: session.phoneNumber || null,
+          connectedAt: session.connectedAt || null,
           remainingTime: Math.ceil(remainingTime / 1000),
-          message: 'Session is active and ready for QR scanning'
+          message: session.connected ? `Connected to ${session.phoneNumber}` : 'Session is active and ready for QR scanning'
         });
       } else {
         res.json({
           active: false,
+          connected: false,
           remainingTime: 0,
           message: 'Session expired or not found'
         });

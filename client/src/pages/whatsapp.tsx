@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,11 +18,48 @@ interface QRResponse {
   expiresIn?: number;
 }
 
+interface SessionStatus {
+  active: boolean;
+  connected: boolean;
+  phoneNumber?: string;
+  connectedAt?: string;
+  remainingTime: number;
+  message: string;
+}
+
 export default function WhatsApp() {
   const [qrData, setQrData] = useState<QRResponse | null>(null);
   const [sessionTimeLeft, setSessionTimeLeft] = useState<number | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectedPhone, setConnectedPhone] = useState<string | null>(null);
   const { toast } = useToast();
   const { user, isLoading } = useAuth();
+
+  // Poll session status when we have an active session
+  const { data: sessionStatus } = useQuery({
+    queryKey: ['/api/whatsapp/session-status', qrData?.sessionId],
+    enabled: !!qrData?.sessionId && !isConnected,
+    refetchInterval: 2000, // Check every 2 seconds
+    queryFn: async () => {
+      const response = await fetch(`/api/whatsapp/session-status/${qrData?.sessionId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to check status');
+      return response.json() as Promise<SessionStatus>;
+    }
+  });
+
+  // Handle connection status updates
+  useEffect(() => {
+    if (sessionStatus?.connected && !isConnected) {
+      setIsConnected(true);
+      setConnectedPhone(sessionStatus.phoneNumber || null);
+      toast({
+        title: "WhatsApp Connected!",
+        description: `Successfully connected ${sessionStatus.phoneNumber}`,
+      });
+    }
+  }, [sessionStatus, isConnected, toast]);
 
   const generateQRMutation = useMutation({
     mutationFn: async (): Promise<QRResponse> => {
@@ -71,7 +108,15 @@ export default function WhatsApp() {
 
   const handleGenerateQR = () => {
     setQrData(null);
+    setIsConnected(false);
+    setConnectedPhone(null);
     generateQRMutation.mutate();
+  };
+
+  const handleNewConnection = () => {
+    setQrData(null);
+    setIsConnected(false);
+    setConnectedPhone(null);
   };
 
   if (isLoading) {
@@ -129,7 +174,35 @@ export default function WhatsApp() {
                     </div>
                   )}
 
-                  {qrData?.success && qrData.qrCode ? (
+                  {isConnected ? (
+                    <div className="text-center space-y-4">
+                      <div className="w-64 h-64 mx-auto border-2 border-green-200 rounded-lg flex items-center justify-center bg-green-50">
+                        <div className="text-center">
+                          <Check className="w-16 h-16 mx-auto text-green-600 mb-4" />
+                          <p className="text-green-800 font-semibold">Connected Successfully!</p>
+                          <p className="text-green-600 text-sm">{connectedPhone}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                        <div className="flex items-center justify-center gap-2 text-green-700 dark:text-green-300">
+                          <Check className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            WhatsApp Profile Connected
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <Button 
+                        onClick={handleNewConnection}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        Connect Another Number
+                      </Button>
+                    </div>
+                  ) : qrData?.success && qrData.qrCode ? (
                     <div className="text-center space-y-4">
                       <div className="flex justify-center p-4 bg-white rounded-lg border-2 border-gray-100">
                         <img 
@@ -139,16 +212,14 @@ export default function WhatsApp() {
                         />
                       </div>
                       
-                      {sessionTimeLeft && sessionTimeLeft > 0 && (
-                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                          <div className="flex items-center justify-center gap-2 text-green-700 dark:text-green-300">
-                            <Check className="w-4 h-4" />
-                            <span className="text-sm font-medium">
-                              Active: {Math.floor(sessionTimeLeft / 60)}:{(sessionTimeLeft % 60).toString().padStart(2, '0')}
-                            </span>
-                          </div>
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                        <div className="flex items-center justify-center gap-2 text-blue-700 dark:text-blue-300">
+                          <RefreshCw className="w-4 h-4 animate-pulse" />
+                          <span className="text-sm font-medium">
+                            Waiting for QR scan... {sessionStatus?.remainingTime ? `${Math.floor(sessionStatus.remainingTime / 60)}:${(sessionStatus.remainingTime % 60).toString().padStart(2, '0')}` : ''}
+                          </span>
                         </div>
-                      )}
+                      </div>
                     </div>
                   ) : qrData && !qrData.success ? (
                     <div className="text-center space-y-4">

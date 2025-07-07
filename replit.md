@@ -165,3 +165,8 @@ Changelog:
 - July 07, 2025. Enhanced TanStack Query error handling to prevent mutation errors from becoming unhandled rejections
 - July 07, 2025. Application now runs completely stable with no crashes, proper error logging, and graceful failure handling
 - July 07, 2025. Both backend and frontend error handling systems work together to provide robust WhatsApp integration
+- July 07, 2025. Fixed WhatsApp connection persistence issue - sessions now stay alive properly for QR scanning
+- July 07, 2025. Implemented intelligent cleanup logic that prevents premature session termination
+- July 07, 2025. Added real-time connection status polling to track successful QR scans
+- July 07, 2025. Enhanced frontend with live connection monitoring and success feedback
+- July 07, 2025. WhatsApp integration now works end-to-end: QR generation → scanning → connection confirmation
