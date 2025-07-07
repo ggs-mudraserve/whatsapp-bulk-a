@@ -5,6 +5,7 @@ import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import AdvancedInbox from "@/components/inbox/advanced-inbox";
 import DirectMessage from "@/components/inbox/direct-message";
+import ErrorBoundary from "@/components/error-boundary";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
@@ -54,7 +55,9 @@ export default function Inbox() {
           subtitle="Manage your WhatsApp conversations"
         />
         <main className="flex-1 overflow-auto p-6">
-          <AdvancedInbox />
+          <ErrorBoundary>
+            <AdvancedInbox />
+          </ErrorBoundary>
           
           {/* Floating + Button */}
           <Dialog open={isDirectMessageOpen} onOpenChange={setIsDirectMessageOpen}>
