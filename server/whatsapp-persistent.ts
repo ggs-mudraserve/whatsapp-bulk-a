@@ -34,8 +34,12 @@ class PersistentWhatsAppService {
 
     console.log('Persistent WhatsApp WebSocket server initialized on /ws-persistent');
 
-    // Load existing sessions on startup
-    await this.loadPersistedSessions();
+    // Load existing sessions asynchronously in background to not block server startup
+    setTimeout(() => {
+      this.loadPersistedSessions().catch(error => {
+        console.error('Error loading persisted sessions in background:', error);
+      });
+    }, 1000); // Wait 1 second after server starts
 
     this.wss.on('connection', (ws) => {
       console.log('Persistent WhatsApp WebSocket connected');
