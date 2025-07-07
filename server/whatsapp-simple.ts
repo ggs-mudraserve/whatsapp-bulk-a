@@ -19,7 +19,7 @@ class SimpleWhatsAppService {
   private sessions: Map<string, SimpleWhatsAppSession> = new Map();
   private wss?: WebSocketServer;
   private rateLimitMap: Map<string, number> = new Map();
-  private readonly RATE_LIMIT_DELAY = 10 * 60 * 1000; // 10 minutes
+  private readonly RATE_LIMIT_DELAY = 15 * 60 * 1000; // 15 minutes
 
   async initializeWebSocket(httpServer: Server) {
     this.wss = new WebSocketServer({ 
@@ -74,7 +74,8 @@ class SimpleWhatsAppService {
         const waitTime = Math.ceil((this.RATE_LIMIT_DELAY - (now - lastAttempt)) / 60000);
         ws.send(JSON.stringify({
           type: 'error',
-          message: `Please wait ${waitTime} minutes before trying again to avoid rate limiting.`
+          sessionId,
+          message: `Rate limited. Please wait ${waitTime} minutes before trying again to avoid being blocked by WhatsApp.`
         }));
         return;
       }
@@ -113,18 +114,21 @@ class SimpleWhatsAppService {
       // Setup auth state
       const { state, saveCreds } = await useMultiFileAuthState(authDir);
 
-      // Create socket with minimal configuration
+      // Create socket with stable configuration for better connection
       const socket = makeWASocket({
         version,
         auth: state,
         printQRInTerminal: false,
-        browser: ['Chrome', 'Linux', '4.0.0'],
-        generateHighQualityLinkPreview: true,
+        browser: ['WhatsApp Marketing Bot', 'Chrome', '4.0.0'],
+        generateHighQualityLinkPreview: false,
         markOnlineOnConnect: false,
         syncFullHistory: false,
-        defaultQueryTimeoutMs: 30000,
-        connectTimeoutMs: 30000,
-        qrTimeout: 30000,
+        defaultQueryTimeoutMs: 60000,
+        connectTimeoutMs: 60000,
+        qrTimeout: 60000,
+        retryRequestDelayMs: 1000,
+        maxMsgRetryCount: 5,
+        keepAliveIntervalMs: 10000,
         logger: {
           level: 'silent',
           child: () => ({ 
@@ -134,13 +138,15 @@ class SimpleWhatsAppService {
             warn: () => {},
             error: () => {},
             debug: () => {},
-            trace: () => {}
+            trace: () => {},
+            fatal: () => {}
           }),
           info: () => {},
           warn: () => {},
           error: () => {},
           debug: () => {},
-          trace: () => {}
+          trace: () => {},
+          fatal: () => {}
         }
       });
 
@@ -220,15 +226,19 @@ class SimpleWhatsAppService {
             message = 'Authentication failed. Please wait 10 minutes and try again.';
             this.rateLimitMap.set(userId, Date.now());
           } else if (statusCode === 515) {
-            // 515 can happen during initial auth or due to rate limiting
-            // Check the session status before disconnect
-            const sessionBeforeDisconnect = this.sessions.get(sessionId);
-            if (sessionBeforeDisconnect && (sessionBeforeDisconnect.status === 'qr_ready' || sessionBeforeDisconnect.status === 'connecting')) {
-              message = 'Connection interrupted during authentication. Please try scanning again.';
-              shouldReconnect = true;
-            } else {
-              message = 'WhatsApp blocked this connection. Please wait 10 minutes and try again.';
-              this.rateLimitMap.set(userId, Date.now());
+            // 515 usually indicates rate limiting or temporary blocking
+            message = 'WhatsApp connection rate limited. Please wait 15 minutes before trying again.';
+            this.rateLimitMap.set(userId, Date.now());
+            
+            // Clear auth files for fresh start
+            const authDir = `./auth_info_${sessionId}`;
+            try {
+              const fs = await import('fs');
+              if (fs.existsSync(authDir)) {
+                fs.rmSync(authDir, { recursive: true, force: true });
+              }
+            } catch (e) {
+              console.log('Auth cleanup failed:', e);
             }
           } else if (statusCode === DisconnectReason.badSession) {
             message = 'Invalid session. Please scan QR code again.';
@@ -265,18 +275,18 @@ class SimpleWhatsAppService {
       // Handle credentials update
       socket.ev.on('creds.update', saveCreds);
 
-      // Setup timeout
+      // Setup timeout with longer duration
       setTimeout(() => {
         if (session.status === 'connecting') {
           console.log('Connection timeout for session:', sessionId);
           ws.send(JSON.stringify({
             type: 'error',
             sessionId,
-            message: 'Connection timeout. Please try again.'
+            message: 'Connection timeout. Please try again in a few minutes.'
           }));
           socket.end(undefined);
         }
-      }, 30000);
+      }, 90000); // 90 seconds timeout
 
     } catch (error) {
       console.error('Error creating WhatsApp session:', error);

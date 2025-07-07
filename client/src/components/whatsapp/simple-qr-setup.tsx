@@ -83,6 +83,18 @@ export default function SimpleQRSetup() {
               description: data.message + (isRetryable ? " Click Connect to try again." : ""),
               variant: "destructive"
             });
+          } else if (data.type === 'error') {
+            setSession(prev => prev ? {
+              ...prev,
+              status: 'disconnected',
+              qrCode: undefined
+            } : null);
+            
+            toast({
+              title: "Connection Error",
+              description: data.message,
+              variant: "destructive"
+            });
           }
         } catch (error) {
           console.error("Error parsing WebSocket message:", error);
