@@ -98,12 +98,24 @@ export default function RobustQRSetup() {
     setIsConnecting(true);
     
     try {
-      // Create WebSocket connection to robust service
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${window.location.host}/ws-robust`;
-      console.log("Attempting to connect to:", wsUrl);
+      // Try enhanced connection first, fallback to simple if needed
+      let wsUrl: string;
+      let newSocket: WebSocket;
       
-      const newSocket = new WebSocket(wsUrl);
+      try {
+        // Try robust connection first
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        wsUrl = `${protocol}//${window.location.host}/ws-robust`;
+        console.log("Attempting enhanced connection to:", wsUrl);
+        newSocket = new WebSocket(wsUrl);
+      } catch (robustError) {
+        console.log("Enhanced connection failed, trying simple connection...");
+        // Fallback to simple connection
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        wsUrl = `${protocol}//${window.location.host}/ws`;
+        console.log("Attempting simple connection to:", wsUrl);
+        newSocket = new WebSocket(wsUrl);
+      }
 
       // Add connection timeout
       const connectionTimeout = setTimeout(() => {
@@ -235,12 +247,21 @@ export default function RobustQRSetup() {
       };
 
       newSocket.onclose = (event) => {
-        console.log("Robust WebSocket disconnected", event.code, event.reason);
+        console.log("WebSocket disconnected", event.code, event.reason);
         setIsConnecting(false);
-        if (event.code !== 1000) { // 1000 is normal closure
+        clearTimeout(connectionTimeout);
+        
+        if (event.code === 1006) {
+          // Network error - try to reconnect or show helpful message
+          toast({
+            title: "Network Connection Issue",
+            description: "WebSocket connection failed. This might be a temporary network issue.",
+            variant: "destructive"
+          });
+        } else if (event.code !== 1000) { // 1000 is normal closure
           toast({
             title: "Connection Lost",
-            description: `WebSocket connection closed unexpectedly (${event.code})`,
+            description: `WebSocket connection closed (${event.code})`,
             variant: "destructive"
           });
         }
