@@ -57,6 +57,7 @@ export default function DirectQRScanner() {
     },
     onError: (error: any) => {
       console.error("QR generation error:", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
       
       if (isUnauthorizedError(error)) {
         toast({
@@ -70,12 +71,19 @@ export default function DirectQRScanner() {
         return;
       }
       
+      // Show more detailed error information
+      const errorMessage = error?.response?.data?.message || error?.message || "Unknown error occurred";
+      
       toast({
         title: "QR Generation Failed",
-        description: error.message || "Failed to generate QR code. Please try again.",
+        description: `Server error: ${errorMessage}`,
         variant: "destructive"
       });
-      setQrData(null);
+      
+      setQrData({
+        success: false,
+        message: errorMessage
+      });
     },
   });
 
@@ -127,6 +135,10 @@ export default function DirectQRScanner() {
   }
 
   const handleGenerateQR = () => {
+    console.log("Starting QR generation process...");
+    console.log("User authenticated:", !!user);
+    console.log("User ID:", user?.id);
+    
     setQrData(null);
     generateQRMutation.mutate();
   };
@@ -191,6 +203,15 @@ export default function DirectQRScanner() {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 <strong>QR Generation Failed:</strong> {qrData.message}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {generateQRMutation.isError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Request Failed:</strong> There was an error communicating with the server. Please try again.
               </AlertDescription>
             </Alert>
           )}

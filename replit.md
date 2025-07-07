@@ -153,3 +153,7 @@ Changelog:
 - July 06, 2025. Updated WhatsApp logger configuration to resolve QR code generation issues
 - July 06, 2025. Confirmed both AI test functionality and QR code generation are working correctly
 - July 06, 2025. Application now ready for full testing of AI agent creation and WhatsApp connection features
+- July 07, 2025. Resolved persistent WebSocket connection issues by implementing direct HTTP QR generation approach
+- July 07, 2025. Successfully created working WhatsApp QR scanner using Baileys library with direct API endpoint
+- July 07, 2025. Fixed apiRequest function to properly parse JSON responses from server
+- July 07, 2025. QR code generation now fully functional - server logs confirm successful generation with stable Baileys integration
