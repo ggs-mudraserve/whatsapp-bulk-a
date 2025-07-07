@@ -261,13 +261,18 @@ export default function AdvancedAIAgents() {
       updatedKeys.push(newApiKey);
       setApiKeys(updatedKeys);
 
-      toast({
-        title: isValid ? "API Key Added" : "API Key Added (Untested)",
-        description: isValid 
-          ? "API key has been verified and saved successfully."
-          : "API key saved but could not be verified. Please check the key.",
-        variant: isValid ? "default" : "destructive",
-      });
+      if (isValid) {
+        toast({
+          title: "API Key Added Successfully",
+          description: "Your API key has been verified and saved.",
+        });
+      } else {
+        toast({
+          title: "API Key Validation Failed",
+          description: "The API key could not be verified. Please check that you copied the complete key from OpenAI.",
+          variant: "destructive",
+        });
+      }
 
       setTempApiKey('');
       setSelectedProvider('');
@@ -526,6 +531,8 @@ export default function AdvancedAIAgents() {
               <Key className="w-4 h-4" />
               <AlertDescription>
                 API keys are stored locally and used only for your agents. We never share them.
+                <br />
+                <strong>Important:</strong> Make sure to copy the complete API key from OpenAI (usually starts with 'sk-proj-' and is about 100+ characters long).
               </AlertDescription>
             </Alert>
             
