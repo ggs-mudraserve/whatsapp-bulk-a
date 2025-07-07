@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile, Bot, Trash2, MessageSquarePlus, Ban, Shield, AlertCircle, FileText } from 'lucide-react';
+import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile, Bot, Trash2, MessageSquarePlus, Ban, Shield, AlertCircle, FileText, Power, PowerOff, UserMinus, UserPlus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -49,10 +49,28 @@ export default function WorkingInbox() {
   const [messageText, setMessageText] = useState('');
   const [selectedNumber, setSelectedNumber] = useState<string>('all');
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [aiAgentActive, setAiAgentActive] = useState(false);
+  const [selectedAiAgent, setSelectedAiAgent] = useState('');
+  const [showAiAgentDialog, setShowAiAgentDialog] = useState(false);
   const [previousConversationCount, setPreviousConversationCount] = useState(0);
   const [previousMessageCounts, setPreviousMessageCounts] = useState<{ [key: number]: number }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  
+  // Debug conversation selection
+  useEffect(() => {
+    console.log('Selected Conversation ID:', selectedConversationId);
+  }, [selectedConversationId]);
+
+  // Available AI Agents
+  const aiAgents = [
+    { id: 'sales', name: 'Sales Expert', icon: '💼' },
+    { id: 'support', name: 'Customer Support', icon: '🎧' },
+    { id: 'marketing', name: 'Marketing Guru', icon: '📈' },
+    { id: 'tech', name: 'Tech Advisor', icon: '🔧' },
+    { id: 'business', name: 'Business Consultant', icon: '📊' }
+  ];
 
   // Fetch conversations with error handling
   const { 
@@ -89,20 +107,17 @@ export default function WorkingInbox() {
   const { 
     data: messages = [], 
     isLoading: messagesLoading,
-    refetch: refetchMessages 
+    refetch: refetchMessages,
+    error: messagesError 
   } = useQuery({
     queryKey: ['/api/conversations', selectedConversationId, 'messages'],
-    queryFn: async () => {
-      if (!selectedConversationId) return [];
-      try {
-        return await apiRequest(`/api/conversations/${selectedConversationId}/messages`);
-      } catch (error) {
-        console.error('Error fetching messages:', error);
-        return [];
-      }
-    },
     enabled: !!selectedConversationId,
-    refetchInterval: 1000,
+    refetchInterval: selectedConversationId ? 2000 : false,
+    retry: 1,
+    onError: (error: any) => {
+      console.error('Messages fetch error:', error);
+      console.log('Conversation ID when error occurred:', selectedConversationId);
+    }
   });
 
   // Send message mutation
@@ -184,6 +199,94 @@ export default function WorkingInbox() {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  // Delete conversation mutation
+  const deleteConversationMutation = useMutation({
+    mutationFn: async (conversationId: number) => {
+      const response = await fetch(`/api/conversations/${conversationId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete conversation');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setSelectedConversationId(null);
+      setShowDeleteDialog(false);
+      refetchConversations();
+      toast({
+        title: 'Chat deleted',
+        description: 'The conversation has been deleted successfully',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to delete chat',
+        description: error.message || 'Please try again',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  // Block/Unblock contact mutation
+  const toggleBlockMutation = useMutation({
+    mutationFn: async ({ contactId, action }: { contactId: number, action: 'block' | 'unblock' }) => {
+      const response = await fetch(`/api/contacts/${contactId}/${action}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to ${action} contact`);
+      }
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      refetchConversations();
+      toast({
+        title: variables.action === 'block' ? 'Contact blocked' : 'Contact unblocked',
+        description: `Contact has been ${variables.action}ed successfully`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Action failed',
+        description: error.message || 'Please try again',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const handleDeleteConversation = () => {
+    if (selectedConversationId) {
+      deleteConversationMutation.mutate(selectedConversationId);
+    }
+  };
+
+  const handleToggleBlock = (contactId: number, currentStatus: string) => {
+    const action = currentStatus === 'blocked' ? 'unblock' : 'block';
+    toggleBlockMutation.mutate({ contactId, action });
+  };
+
+  const handleAiAgentToggle = () => {
+    if (!aiAgentActive) {
+      setShowAiAgentDialog(true);
+    } else {
+      setAiAgentActive(false);
+      setSelectedAiAgent('');
+    }
+  };
+
+  const handleSelectAiAgent = (agentId: string) => {
+    setSelectedAiAgent(agentId);
+    setAiAgentActive(true);
+    setShowAiAgentDialog(false);
+    toast({
+      title: 'AI Agent activated',
+      description: `${aiAgents.find(a => a.id === agentId)?.name} is now handling this conversation`,
+    });
   };
 
   // Auto-scroll to bottom when new messages arrive
@@ -374,10 +477,51 @@ export default function WorkingInbox() {
                     <div className="flex items-center space-x-2 text-sm text-gray-500">
                       <Phone className="w-3 h-3" />
                       <span>{selectedConversation.contactPhone}</span>
+                      {selectedConversation.status === 'blocked' && (
+                        <Badge variant="destructive" className="text-xs">Blocked</Badge>
+                      )}
+                      {aiAgentActive && selectedAiAgent && (
+                        <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                          {aiAgents.find(a => a.id === selectedAiAgent)?.icon} AI Active
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
+                  {/* AI Agent Toggle */}
+                  <Button 
+                    variant={aiAgentActive ? "default" : "ghost"} 
+                    size="sm"
+                    onClick={handleAiAgentToggle}
+                    className={aiAgentActive ? "bg-green-500 hover:bg-green-600 text-white" : ""}
+                  >
+                    {aiAgentActive ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
+                  </Button>
+                  
+                  {/* Block/Unblock Button */}
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => handleToggleBlock(selectedConversation.contactId, selectedConversation.status)}
+                    disabled={toggleBlockMutation.isPending}
+                  >
+                    {selectedConversation.status === 'blocked' ? 
+                      <UserPlus className="w-4 h-4 text-green-600" /> : 
+                      <UserMinus className="w-4 h-4 text-red-600" />
+                    }
+                  </Button>
+                  
+                  {/* Delete Chat Button */}
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setShowDeleteDialog(true)}
+                    disabled={deleteConversationMutation.isPending}
+                  >
+                    <Trash2 className="w-4 h-4 text-red-600" />
+                  </Button>
+                  
                   <Button variant="ghost" size="sm">
                     <MoreVertical className="w-4 h-4" />
                   </Button>
@@ -393,14 +537,21 @@ export default function WorkingInbox() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {Array.isArray(messages) && messages.length === 0 ? (
+                  {messagesLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                      <p className="text-gray-500">Loading messages...</p>
+                    </div>
+                  ) : Array.isArray(messages) && messages.length === 0 ? (
                     <div className="text-center py-8">
                       <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                       <p className="text-gray-500">No messages yet</p>
                       <p className="text-xs text-gray-400">Start the conversation by sending a message</p>
+                      <p className="text-xs text-red-400 mt-2">Conversation ID: {selectedConversationId}</p>
+                      <p className="text-xs text-blue-400">Messages Array: {JSON.stringify(messages)}</p>
                     </div>
                   ) : (
-                    Array.isArray(messages) && messages.map((message: Message) => (
+                    Array.isArray(messages) && messages.length > 0 && messages.map((message: Message) => (
                       <div
                         key={message.id}
                         className={cn(
@@ -489,14 +640,25 @@ export default function WorkingInbox() {
                         <Smile className="w-4 h-4" />
                       </Button>
                     </div>
-                    <Button 
-                      onClick={handleSendMessage}
-                      disabled={!messageText.trim() || sendMessageMutation.isPending}
-                      size="icon"
-                      className="bg-blue-500 hover:bg-blue-600"
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
+                    {aiAgentActive && selectedAiAgent ? (
+                      <Button 
+                        variant="outline"
+                        size="icon"
+                        className="border-green-500 text-green-600 hover:bg-green-50"
+                        disabled
+                      >
+                        <Bot className="w-4 h-4" />
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={handleSendMessage}
+                        disabled={!messageText.trim() || sendMessageMutation.isPending}
+                        size="icon"
+                        className="bg-blue-500 hover:bg-blue-600"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                   {sendMessageMutation.isPending && (
                     <div className="flex items-center space-x-2 mt-2 text-sm text-gray-500">
@@ -555,6 +717,76 @@ export default function WorkingInbox() {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Agent Selection Dialog */}
+      {showAiAgentDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Select AI Agent</h3>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowAiAgentDialog(false)}
+              >
+                ×
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {aiAgents.map((agent) => (
+                <div
+                  key={agent.id}
+                  className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer flex items-center space-x-3"
+                  onClick={() => handleSelectAiAgent(agent.id)}
+                >
+                  <span className="text-2xl">{agent.icon}</span>
+                  <div>
+                    <h4 className="font-medium text-sm">{agent.name}</h4>
+                    <p className="text-xs text-gray-600">AI-powered assistant</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Delete Chat</h3>
+                <p className="text-sm text-gray-600">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to delete this conversation? All messages will be permanently removed.
+            </p>
+            <div className="flex space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDeleteDialog(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDeleteConversation}
+                disabled={deleteConversationMutation.isPending}
+                className="flex-1"
+              >
+                {deleteConversationMutation.isPending ? 'Deleting...' : 'Delete Chat'}
+              </Button>
             </div>
           </div>
         </div>
