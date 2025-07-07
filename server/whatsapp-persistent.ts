@@ -530,9 +530,18 @@ class PersistentWhatsAppService {
             const aiConfig = {
               provider: chatbotSettings.aiProvider || 'openai',
               model: chatbotSettings.aiModel || 'gpt-4o',
+              apiKey: chatbotSettings.customApiKey || process.env.OPENAI_API_KEY,
               temperature: chatbotSettings.temperature || 0.7,
               maxTokens: chatbotSettings.maxTokens || 150
             };
+
+            console.log('Using AI config:', {
+              provider: aiConfig.provider,
+              model: aiConfig.model,
+              hasApiKey: !!aiConfig.apiKey,
+              temperature: aiConfig.temperature,
+              maxTokens: aiConfig.maxTokens
+            });
             
             const aiResponse = await multiAIService.generateResponse(
               messageBody,
