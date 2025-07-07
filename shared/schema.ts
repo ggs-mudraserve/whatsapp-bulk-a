@@ -96,10 +96,16 @@ export const templates = pgTable("templates", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: varchar("name").notNull(),
-  category: varchar("category").notNull(), // promotional, follow-up, newsletter, events
+  category: varchar("category").notNull(), // promotional, follow-up, newsletter, events, sales, support
   content: text("content").notNull(),
+  variables: jsonb("variables").$type<string[]>().default([]), // {{name}}, {{company}}, etc.
   ctaButtons: jsonb("cta_buttons").$type<{ text: string; url?: string; type: 'url' | 'phone' | 'text' }[]>().default([]),
+  tags: jsonb("tags").$type<string[]>().default([]), // custom tags for filtering
+  language: varchar("language").default("en"), // en, hi, es, etc.
+  isActive: boolean("is_active").default(true),
   usageCount: integer("usage_count").default(0),
+  lastUsed: timestamp("last_used"),
+  estimatedReadTime: integer("estimated_read_time").default(0), // in seconds
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
