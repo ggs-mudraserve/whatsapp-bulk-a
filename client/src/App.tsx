@@ -18,6 +18,7 @@ import AIAgents from "@/pages/ai-agents";
 import WhatsAppSetupPersistent from "@/pages/whatsapp-setup-persistent";
 import FeaturesOverview from "@/pages/features-overview";
 import TestPage from "@/components/test-page";
+import CleanInbox from "@/components/inbox/clean-inbox";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -47,7 +48,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Dashboard} />
-          <Route path="/inbox" component={TestPage} />
+          <Route path="/inbox" component={CleanInbox} />
           <Route path="/campaigns" component={Campaigns} />
           <Route path="/contacts" component={Contacts} />
           <Route path="/templates" component={Templates} />
