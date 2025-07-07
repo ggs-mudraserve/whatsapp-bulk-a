@@ -14,6 +14,7 @@ export default function ConversationList() {
 
   const { data: conversations, isLoading } = useQuery({
     queryKey: ["/api/conversations"],
+    refetchInterval: 10000, // Refresh every 10 seconds for real-time updates
     retry: false,
   });
 

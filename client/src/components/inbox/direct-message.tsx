@@ -34,6 +34,13 @@ export default function DirectMessage({ onClose }: DirectMessageProps) {
     retry: false,
   });
 
+  // Get active WhatsApp sessions for real-time data
+  const { data: activeSessions } = useQuery({
+    queryKey: ["/api/whatsapp/active-sessions"],
+    refetchInterval: 5000, // Refresh every 5 seconds
+    retry: false,
+  });
+
   const form = useForm<DirectMessageFormData>({
     resolver: zodResolver(directMessageSchema),
     defaultValues: {
@@ -95,7 +102,25 @@ export default function DirectMessage({ onClose }: DirectMessageProps) {
     });
   };
 
-  const availableNumbers = Array.isArray(whatsappNumbers) ? whatsappNumbers.filter((num: any) => num.status === 'connected') : [];
+  // Combine stored numbers with active sessions for real-time status
+  const availableNumbers = React.useMemo(() => {
+    if (!Array.isArray(whatsappNumbers)) return [];
+    
+    // Get active session phone numbers if available
+    const activePhones = activeSessions?.sessions?.map((session: any) => session.phoneNumber).filter(Boolean) || [];
+    
+    // Include numbers that are stored as connected OR have active sessions
+    return whatsappNumbers.filter((number: any) => 
+      number.status === "connected" || 
+      number.status === "active" ||
+      activePhones.includes(number.phoneNumber)
+    ).map((number: any) => ({
+      ...number,
+      // Show real-time status
+      displayStatus: activePhones.includes(number.phoneNumber) ? 'Connected' : number.status || 'Unknown',
+      isActive: activePhones.includes(number.phoneNumber)
+    }));
+  }, [whatsappNumbers, activeSessions]);
 
   return (
     <Card>
@@ -123,7 +148,14 @@ export default function DirectMessage({ onClose }: DirectMessageProps) {
                     <SelectContent>
                       {availableNumbers.map((number: any) => (
                         <SelectItem key={number.id} value={number.id.toString()}>
-                          {number.phoneNumber} - {number.displayName || 'No name'}
+                          <div className="flex items-center justify-between w-full">
+                            <span>{number.phoneNumber} - {number.displayName || 'No name'}</span>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              number.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {number.displayStatus}
+                            </span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -439,6 +439,8 @@ export default function ChatInterface() {
     );
   }
 
+  console.log('ChatInterface rendering with conversation:', selectedConversation);
+
   try {
     return (
       <>
