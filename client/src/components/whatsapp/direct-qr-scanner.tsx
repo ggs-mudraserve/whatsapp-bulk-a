@@ -24,16 +24,34 @@ export default function DirectQRScanner() {
   const generateQRMutation = useMutation({
     mutationFn: async (): Promise<QRResponse> => {
       console.log("Making direct QR generation request...");
-      const response = await apiRequest("POST", "/api/whatsapp/generate-qr-direct", {});
-      return response;
+      try {
+        const response = await apiRequest("POST", "/api/whatsapp/generate-qr-direct", {});
+        console.log("Raw response from server:", response);
+        return response;
+      } catch (error) {
+        console.error("API request failed:", error);
+        throw error;
+      }
     },
     onSuccess: (data: QRResponse) => {
-      console.log("QR generation successful:", data);
+      console.log("QR generation successful, data received:", data);
+      console.log("Data success flag:", data.success);
+      console.log("Data has QR code:", !!data.qrCode);
+      
       setQrData(data);
+      
       if (data.success && data.qrCode) {
+        console.log("Showing success toast");
         toast({
           title: "QR Code Generated!",
           description: "Scan the QR code with your WhatsApp mobile app"
+        });
+      } else {
+        console.log("Data success or QR code missing", { success: data.success, hasQR: !!data.qrCode });
+        toast({
+          title: "Partial Success",
+          description: data.message || "QR generation completed but may have issues",
+          variant: "destructive"
         });
       }
     },
