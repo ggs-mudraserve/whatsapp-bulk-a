@@ -640,14 +640,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (immediate) {
           try {
-            socket.logout();
-          } catch (e) {}
+            // Check if socket is still connected before trying to logout
+            if (socket.ws && socket.ws.readyState === 1) {
+              socket.logout();
+            }
+          } catch (e) {
+            // Ignore logout errors - socket might already be closed
+          }
         } else {
           // Keep socket alive for 2 minutes to allow scanning
           setTimeout(() => {
             try {
-              socket.logout();
-            } catch (e) {}
+              // Check if socket is still connected before trying to logout
+              if (socket.ws && socket.ws.readyState === 1) {
+                socket.logout();
+              }
+            } catch (e) {
+              // Ignore logout errors - socket might already be closed
+            }
           }, 120000);
         }
         
@@ -666,72 +676,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       socket.ev.on('connection.update', async (update) => {
-        const { qr, connection } = update;
-        
-        if (qr && !qrGenerated) {
-          qrGenerated = true;
-          console.log('QR Code generated successfully - keeping session alive for scanning');
+        try {
+          const { qr, connection } = update;
           
-          // Store the active session
-          global.activeSessions.set(activeSessionKey, {
-            socket,
-            sessionId,
-            userId,
-            createdAt: new Date(),
-            authDir
-          });
-          
-          try {
-            const qrCodeDataUrl = await QRCode.default.toDataURL(qr, {
-              width: 256,
-              margin: 2,
-              color: {
-                dark: '#000000',
-                light: '#FFFFFF'
-              }
-            });
+          if (qr && !qrGenerated) {
+            qrGenerated = true;
+            console.log('QR Code generated successfully - keeping session alive for scanning');
             
-            // DON'T cleanup immediately - keep session alive
-            
-            // Send QR code with instructions
-            res.json({
-              success: true,
+            // Store the active session
+            global.activeSessions.set(activeSessionKey, {
+              socket,
               sessionId,
-              qrCode: qrCodeDataUrl,
-              message: 'QR code generated successfully. Session will remain active for 2 minutes for scanning.',
-              expiresIn: 120
+              userId,
+              createdAt: new Date(),
+              authDir
             });
             
-          } catch (qrError) {
-            console.error('QR generation error:', qrError);
-            cleanup(true);
-            if (!res.headersSent) {
+            try {
+              const qrCodeDataUrl = await QRCode.default.toDataURL(qr, {
+                width: 256,
+                margin: 2,
+                color: {
+                  dark: '#000000',
+                  light: '#FFFFFF'
+                }
+              });
+              
+              // DON'T cleanup immediately - keep session alive
+              
+              // Send QR code with instructions
+              res.json({
+                success: true,
+                sessionId,
+                qrCode: qrCodeDataUrl,
+                message: 'QR code generated successfully. Session will remain active for 2 minutes for scanning.',
+                expiresIn: 120
+              });
+              
+            } catch (qrError) {
+              console.error('QR generation error:', qrError);
+              cleanup(true);
+              if (!res.headersSent) {
+                res.status(500).json({ 
+                  success: false,
+                  message: 'Failed to generate QR code image' 
+                });
+              }
+            }
+          }
+          
+          if (connection === 'open') {
+            console.log(`WhatsApp connected successfully for session ${sessionId}`);
+            // Connection successful, but don't cleanup - let it stay connected
+          }
+          
+          if (connection === 'close') {
+            console.log(`WhatsApp connection closed for session ${sessionId}`);
+            cleanup(false); // Use graceful cleanup instead of immediate
+            if (!qrGenerated && !res.headersSent) {
               res.status(500).json({ 
                 success: false,
-                message: 'Failed to generate QR code image' 
+                message: 'Connection closed before QR generation' 
               });
             }
           }
-        }
-        
-        if (connection === 'open') {
-          console.log(`WhatsApp connected successfully for session ${sessionId}`);
-          // Connection successful, but don't cleanup - let it stay connected
-        }
-        
-        if (connection === 'close') {
-          console.log(`WhatsApp connection closed for session ${sessionId}`);
-          cleanup(true);
-          if (!qrGenerated && !res.headersSent) {
-            res.status(500).json({ 
-              success: false,
-              message: 'Connection closed before QR generation' 
-            });
-          }
+        } catch (eventError) {
+          console.error('Error in connection.update event:', eventError);
+          // Don't crash, just log the error
         }
       });
 
-      socket.ev.on('creds.update', saveCreds);
+      socket.ev.on('creds.update', (creds) => {
+        try {
+          saveCreds(creds);
+        } catch (credsError) {
+          console.error('Error saving credentials:', credsError);
+          // Don't crash, just log the error
+        }
+      });
 
       // Timeout fallback
       connectionTimeout = setTimeout(() => {

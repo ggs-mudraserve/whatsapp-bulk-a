@@ -157,3 +157,8 @@ Changelog:
 - July 07, 2025. Successfully created working WhatsApp QR scanner using Baileys library with direct API endpoint
 - July 07, 2025. Fixed apiRequest function to properly parse JSON responses from server
 - July 07, 2025. QR code generation now fully functional - server logs confirm successful generation with stable Baileys integration
+- July 07, 2025. Fixed application crash issues by implementing comprehensive error handling for Baileys WhatsApp connection
+- July 07, 2025. Added process-level error handlers for unhandled rejections and uncaught exceptions to prevent server crashes
+- July 07, 2025. Improved cleanup function to check socket state before logout to prevent "Connection Closed" errors
+- July 07, 2025. Wrapped all Baileys event handlers in try-catch blocks for graceful error handling
+- July 07, 2025. Application now runs stably without crashes even when WhatsApp connections fail or close unexpectedly
