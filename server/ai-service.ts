@@ -124,6 +124,10 @@ Use this real-time data from the application to provide accurate, context-aware 
       // Add current user message
       messages.push({ role: "user", content: userMessage });
 
+      // Debug: Log the complete messages array being sent to AI
+      console.log('🔍 Debug: Messages being sent to AI:', JSON.stringify(messages, null, 2));
+      console.log('🔍 Debug: System prompt being used:', messages[0]?.content);
+
       // Make API call based on provider
       const response = await this.makeProviderCall(client, config, messages);
       
@@ -148,14 +152,17 @@ Use this real-time data from the application to provide accurate, context-aware 
 
     switch (config.provider) {
       case 'openai':
+        console.log('🔍 Debug: Making OpenAI API call with model:', config.model);
         const openaiResponse = await client.chat.completions.create({
           model: config.model,
           messages,
           temperature,
           max_tokens: maxTokens,
         });
+        const responseContent = openaiResponse.choices[0]?.message?.content || '';
+        console.log('🔍 Debug: OpenAI response received:', responseContent);
         return {
-          content: openaiResponse.choices[0]?.message?.content || '',
+          content: responseContent,
           tokensUsed: openaiResponse.usage?.total_tokens
         };
 
