@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile, Bot, Trash2 } from 'lucide-react';
+import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile, Bot, Trash2, MessageSquarePlus } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -40,8 +41,17 @@ export default function AdvancedInbox() {
   const [searchTerm, setSearchTerm] = useState('');
   const [messageText, setMessageText] = useState('');
   const [showAIPanel, setShowAIPanel] = useState(false);
+  const [selectedNumber, setSelectedNumber] = useState<string>('all');
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [newChatPhone, setNewChatPhone] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Fetch WhatsApp numbers for dropdown
+  const { data: whatsappSessions = [] } = useQuery({
+    queryKey: ['/api/whatsapp/active-sessions'],
+    refetchInterval: 5000,
+  });
 
   // Real-time data fetching
   const { data: conversations = [], isLoading: conversationsLoading, refetch: refetchConversations } = useQuery({
@@ -94,16 +104,61 @@ export default function AdvancedInbox() {
     },
   });
 
+  // New chat mutation
+  const newChatMutation = useMutation({
+    mutationFn: async (phoneNumber: string) => {
+      // First create/get contact
+      const contactResponse = await apiRequest('POST', '/api/contacts', {
+        name: phoneNumber,
+        phone: phoneNumber.replace(/[^\d]/g, ''),
+        tags: [],
+        status: 'active'
+      });
+      
+      // Then create conversation
+      return await apiRequest('POST', '/api/conversations', {
+        contactId: contactResponse.id
+      });
+    },
+    onSuccess: (newConversation) => {
+      setSelectedConversationId(newConversation.id);
+      setShowNewChat(false);
+      setNewChatPhone('');
+      refetchConversations();
+      toast({
+        title: 'New chat created',
+        description: 'You can now start messaging.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Failed to create chat',
+        description: 'Could not create new conversation. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Filter conversations based on search
-  const filteredConversations = conversations.filter((conv: Conversation) =>
-    conv.contactName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    conv.contactPhone?.includes(searchTerm)
-  );
+  // Filter conversations based on search and selected number
+  const filteredConversations = conversations.filter((conv: Conversation) => {
+    // Filter by search term
+    const matchesSearch = conv.contactName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      conv.contactPhone?.includes(searchTerm);
+
+    // Filter by selected WhatsApp number (if not "all")
+    if (selectedNumber === 'all') {
+      return matchesSearch;
+    } else {
+      // Here you would filter based on which WhatsApp number the conversation belongs to
+      // For now, we'll show all conversations as the backend doesn't yet track which number received each message
+      return matchesSearch;
+    }
+  });
 
   const selectedConversation = conversations.find((conv: Conversation) => conv.id === selectedConversationId);
 
@@ -168,6 +223,70 @@ export default function AdvancedInbox() {
             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
               {conversations.length} chats
             </Badge>
+          </div>
+          
+          {/* Number Selection */}
+          <div className="mb-3">
+            <Select value={selectedNumber} onValueChange={setSelectedNumber}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select WhatsApp Number" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Numbers</SelectItem>
+                {whatsappSessions?.sessions?.filter(session => session.status === 'connected').map((session) => (
+                  <SelectItem key={session.id} value={session.id}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      {session.phoneNumber || session.id.slice(-10)}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* New Chat Section */}
+          <div className="mb-3">
+            {showNewChat ? (
+              <div className="space-y-2">
+                <Input
+                  placeholder="Enter phone number (e.g., +1234567890)"
+                  value={newChatPhone}
+                  onChange={(e) => setNewChatPhone(e.target.value)}
+                  className="text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    onClick={() => newChatMutation.mutate(newChatPhone)}
+                    disabled={!newChatPhone.trim() || newChatMutation.isPending}
+                    className="flex-1"
+                  >
+                    <MessageSquarePlus className="w-4 h-4 mr-1" />
+                    {newChatMutation.isPending ? 'Creating...' : 'Start Chat'}
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowNewChat(false);
+                      setNewChatPhone('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                onClick={() => setShowNewChat(true)}
+              >
+                <MessageSquarePlus className="w-4 h-4 mr-2" />
+                New Chat
+              </Button>
+            )}
           </div>
           
           {/* Search */}
@@ -272,7 +391,7 @@ export default function AdvancedInbox() {
               <MessageCircle className="w-20 h-20 mx-auto mb-6 text-gray-300" />
               <h3 className="text-xl font-semibold mb-2 text-gray-700">Welcome to your inbox</h3>
               <p className="text-gray-500 max-w-sm">
-                Select a conversation from the sidebar to start messaging, or create a new conversation using the + button.
+                Select a conversation from the sidebar to start messaging, or create a new conversation using the "New Chat" button.
               </p>
             </div>
           </div>
