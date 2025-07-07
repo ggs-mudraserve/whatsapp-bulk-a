@@ -297,6 +297,32 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async updateMessageStatus(messageId: string, status: string): Promise<void> {
+    const updateData: any = { status };
+    
+    if (status === 'delivered') {
+      updateData.deliveredAt = new Date();
+    } else if (status === 'read') {
+      updateData.readAt = new Date();
+    }
+    
+    await db.update(messages)
+      .set(updateData)
+      .where(eq(messages.messageId, messageId));
+  }
+
+  async markMessagesAsRead(conversationId: number): Promise<void> {
+    await db.update(messages)
+      .set({ 
+        status: 'read',
+        readAt: new Date()
+      })
+      .where(and(
+        eq(messages.conversationId, conversationId),
+        eq(messages.direction, 'incoming')
+      ));
+  }
+
   // Anti-blocking settings
   async getAntiBlockingSettings(userId: string): Promise<AntiBlockingSettings | undefined> {
     const [settings] = await db

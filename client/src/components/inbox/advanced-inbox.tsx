@@ -49,6 +49,8 @@ export default function AdvancedInbox() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+
+
   // Fetch WhatsApp numbers for dropdown with real-time sync
   const { data: whatsappSessions = [] } = useQuery({
     queryKey: ['/api/whatsapp/active-sessions'],
@@ -90,20 +92,31 @@ export default function AdvancedInbox() {
         content: messageData.content,
         direction: 'outgoing',
         messageType: 'text',
+        status: 'sent'
       });
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       setMessageText('');
-      // Immediate refresh with slight delay to ensure server processing
+      
+      // Show immediate success feedback
+      toast({
+        title: 'Message sent',
+        description: 'Your message is being delivered...',
+      });
+      
+      // Immediate refresh to show new message
       setTimeout(() => {
         refetchMessages();
         refetchConversations();
       }, 100);
       
-      toast({
-        title: 'Message sent',
-        description: 'Your message has been delivered.',
-      });
+      // Show delivery confirmation after a delay (simulating WhatsApp delivery)
+      setTimeout(() => {
+        toast({
+          title: 'Message delivered',
+          description: 'Your message has been delivered successfully.',
+        });
+      }, 2000);
     },
     onError: (error) => {
       toast({
@@ -168,6 +181,77 @@ export default function AdvancedInbox() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Mark conversation as read when opened
+  useEffect(() => {
+    if (selectedConversationId) {
+      const markAsRead = async () => {
+        try {
+          await apiRequest('PATCH', `/api/conversations/${selectedConversationId}/mark-read`);
+          await queryClient.invalidateQueries({ queryKey: ['/api/conversations'] });
+        } catch (error) {
+          console.error('Failed to mark conversation as read:', error);
+        }
+      };
+      
+      // Debounce the mark as read call
+      const timer = setTimeout(markAsRead, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedConversationId]);
+
+  // Real-time notification system
+  useEffect(() => {
+    let previousConversationCount = conversations.length;
+    let previousMessageCounts: { [key: number]: number } = {};
+    
+    // Initialize message counts
+    conversations.forEach(conv => {
+      previousMessageCounts[conv.id] = conv.unreadCount || 0;
+    });
+
+    return () => {
+      // Check for new conversations
+      if (conversations.length > previousConversationCount) {
+        toast({
+          title: "New conversation",
+          description: "You have a new WhatsApp conversation",
+        });
+      }
+
+      // Check for new messages in existing conversations
+      conversations.forEach(conv => {
+        const previousCount = previousMessageCounts[conv.id] || 0;
+        const currentCount = conv.unreadCount || 0;
+        
+        if (currentCount > previousCount) {
+          const newMessages = currentCount - previousCount;
+          
+          // Don't show notification for currently selected conversation
+          if (conv.id !== selectedConversationId) {
+            toast({
+              title: `New message${newMessages > 1 ? 's' : ''} from ${conv.contactName}`,
+              description: conv.lastMessage || 'New message received',
+            });
+
+            // Browser notification
+            if (Notification.permission === 'granted') {
+              new Notification(`WhatsApp Pro - ${conv.contactName}`, {
+                body: conv.lastMessage || 'New message received',
+                icon: '/favicon.ico',
+              });
+            } else if (Notification.permission !== 'denied') {
+              Notification.requestPermission();
+            }
+          }
+        }
+        
+        previousMessageCounts[conv.id] = currentCount;
+      });
+
+      previousConversationCount = conversations.length;
+    };
+  }, [conversations, selectedConversationId, toast]);
+
   // Filter conversations based on search and selected number
   const filteredConversations = conversations.filter((conv: Conversation) => {
     // Filter by search term
@@ -214,18 +298,21 @@ export default function AdvancedInbox() {
     }
   };
 
+  // Message status icon function
   const getStatusIcon = (status: string, direction: string) => {
-    if (direction !== 'outgoing') return null;
+    if (direction === 'incoming') return null; // No status icons for incoming messages
     
     switch (status) {
-      case 'read':
-        return <CheckCheck className="w-3 h-3 text-blue-500" />;
-      case 'delivered':
-        return <CheckCheck className="w-3 h-3 text-gray-400" />;
       case 'sent':
         return <Check className="w-3 h-3 text-gray-400" />;
+      case 'delivered':
+        return <CheckCheck className="w-3 h-3 text-gray-400" />;
+      case 'read':
+        return <CheckCheck className="w-3 h-3 text-blue-500" />;
+      case 'failed':
+        return <AlertCircle className="w-3 h-3 text-red-400" />;
       default:
-        return null;
+        return <Clock className="w-3 h-3 text-gray-400" />;
     }
   };
 

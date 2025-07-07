@@ -141,6 +141,9 @@ export const messages = pgTable("messages", {
   status: varchar("status").default("sent"), // sent, delivered, read, failed
   mediaUrl: varchar("media_url"),
   timestamp: timestamp("timestamp").defaultNow(),
+  deliveredAt: timestamp("delivered_at"),
+  readAt: timestamp("read_at"),
+  messageId: varchar("message_id"), // WhatsApp message ID for tracking
   createdAt: timestamp("created_at").defaultNow(),
 });
 

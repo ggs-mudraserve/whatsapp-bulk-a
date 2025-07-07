@@ -475,6 +475,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mark conversation as read
+  app.patch('/api/conversations/:id/mark-read', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      
+      console.log(`Mark conversation as read - ID: ${id}, User: ${userId}`);
+      
+      // Update conversation to mark as read
+      await storage.updateConversation(id, { unreadCount: 0 });
+      
+      console.log(`✓ Successfully marked conversation ${id} as read`);
+      res.json({ success: true, message: 'Conversation marked as read' });
+    } catch (error) {
+      console.error("Error marking conversation as read:", error);
+      res.status(500).json({ message: "Failed to mark conversation as read", error: error.message });
+    }
+  });
+
   // Messages routes
   app.get('/api/conversations/:id/messages', isAuthenticated, async (req: any, res) => {
     try {
