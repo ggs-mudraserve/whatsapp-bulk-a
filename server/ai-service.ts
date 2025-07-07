@@ -414,19 +414,16 @@ Message: "${message}"`;
 
   // Utility methods
   private shouldAutoReply(userMessage: string, response: string): boolean {
-    const userLower = userMessage.toLowerCase();
-    const responseLength = response.length;
+    console.log(`🤖 shouldAutoReply check: message="${userMessage}", messageLength=${userMessage.length}, response length=${response.length}`);
     
-    // Don't auto-reply to very short messages or if response is too long
-    if (userMessage.length < 3 || responseLength > 500) return false;
+    // Always reply when AI is enabled - this is what users expect from an AI chatbot
+    if (userMessage.length > 0 && response.length > 0) {
+      console.log('✅ AI will reply to message');
+      return true;
+    }
     
-    // Auto-reply to common inquiries
-    const autoReplyKeywords = [
-      'hours', 'price', 'cost', 'available', 'help', 'support', 
-      'order', 'status', 'delivery', 'shipping', 'return'
-    ];
-    
-    return autoReplyKeywords.some(keyword => userLower.includes(keyword));
+    console.log('❌ AI will not reply - insufficient content');
+    return false;
   }
 
   private calculateConfidence(response: string): number {
