@@ -1727,5 +1727,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await workingWhatsAppService.initializeWebSocket(httpServer);
   await persistentWhatsAppService.initializeWebSocket(httpServer);
   
+  // Direct QR generation endpoint for persistent WhatsApp
+  app.post('/api/whatsapp/qr-persistent', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sessionId = `whatsapp_persistent_${userId}_${Date.now()}`;
+      
+      console.log(`Direct QR generation for persistent session: ${sessionId}`);
+      
+      // Create session directly without WebSocket
+      const qrCode = await persistentWhatsAppService.createDirectSession(sessionId, userId);
+      
+      if (qrCode) {
+        res.json({
+          success: true,
+          sessionId,
+          qrCode,
+          message: 'QR code generated successfully'
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: 'Failed to generate QR code'
+        });
+      }
+    } catch (error) {
+      console.error('Direct QR generation error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to generate QR code',
+        error: error.message
+      });
+    }
+  });
+
   return httpServer;
 }

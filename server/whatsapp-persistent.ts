@@ -491,6 +491,142 @@ class PersistentWhatsAppService {
       throw error;
     }
   }
+
+  // Direct session creation for API calls (without WebSocket)
+  async createDirectSession(sessionId: string, userId: string): Promise<string | null> {
+    try {
+      console.log(`Creating direct persistent session for user ${userId}, session: ${sessionId}`);
+      
+      // Check if session already exists
+      const existingSession = this.sessions.get(sessionId);
+      if (existingSession && existingSession.status === 'connected') {
+        console.log(`Session ${sessionId} already connected`);
+        return null;
+      }
+
+      // Disconnect existing session if any
+      if (existingSession) {
+        await this.disconnectSession(sessionId);
+      }
+
+      // Create auth directory
+      const authPath = path.join(process.cwd(), `auth_info_persistent_${sessionId}`);
+      
+      // Save session metadata
+      const metadataPath = path.join(authPath, 'session_metadata.json');
+      fs.mkdirSync(authPath, { recursive: true });
+      fs.writeFileSync(metadataPath, JSON.stringify({ 
+        userId, 
+        sessionId, 
+        createdAt: new Date().toISOString() 
+      }));
+
+      // Create session
+      const session: PersistentWhatsAppSession = {
+        id: sessionId,
+        userId,
+        status: 'connecting',
+        lastActivity: new Date(),
+        authPath
+      };
+      this.sessions.set(sessionId, session);
+
+      return new Promise((resolve, reject) => {
+        // Create WhatsApp client
+        const client = new Client({
+          authStrategy: new LocalAuth({
+            clientId: sessionId,
+            dataPath: authPath
+          }),
+          puppeteer: {
+            args: [
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-dev-shm-usage',
+              '--disable-accelerated-2d-canvas',
+              '--no-first-run',
+              '--no-zygote',
+              '--single-process',
+              '--disable-gpu',
+              '--disable-background-timer-throttling',
+              '--disable-backgrounding-occluded-windows',
+              '--disable-renderer-backgrounding'
+            ],
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium'
+          },
+          webVersionCache: {
+            type: 'remote',
+            remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+          }
+        });
+
+        this.clients.set(sessionId, client);
+        session.client = client;
+
+        // Set up QR handler
+        client.on('qr', async (qr: string) => {
+          try {
+            console.log(`QR Code generated for direct session ${sessionId}`);
+            
+            const qrCodeDataUrl = await QRCode.toDataURL(qr, {
+              width: 256,
+              margin: 2,
+              color: {
+                dark: '#000000',
+                light: '#FFFFFF'
+              }
+            });
+            
+            session.qrCode = qrCodeDataUrl;
+            session.status = 'qr_ready';
+            session.lastActivity = new Date();
+            this.sessions.set(sessionId, session);
+
+            resolve(qrCodeDataUrl);
+          } catch (qrError) {
+            console.error('QR code generation error:', qrError);
+            reject(qrError);
+          }
+        });
+
+        client.on('ready', () => {
+          console.log(`WhatsApp client ready for direct session ${sessionId}`);
+          
+          const info = client.info;
+          session.phoneNumber = info.wid.user;
+          session.status = 'connected';
+          session.lastActivity = new Date();
+          this.sessions.set(sessionId, session);
+        });
+
+        client.on('auth_failure', (msg: string) => {
+          console.error(`WhatsApp auth failure for direct session ${sessionId}:`, msg);
+          session.status = 'disconnected';
+          this.sessions.set(sessionId, session);
+          reject(new Error('Authentication failed'));
+        });
+
+        client.on('disconnected', (reason: string) => {
+          console.log(`WhatsApp client disconnected for direct session ${sessionId}:`, reason);
+          session.status = 'disconnected';
+          this.sessions.set(sessionId, session);
+        });
+
+        // Initialize with timeout
+        setTimeout(() => {
+          if (session.status === 'connecting') {
+            reject(new Error('QR generation timeout'));
+          }
+        }, 30000);
+
+        client.initialize();
+      });
+
+    } catch (error) {
+      console.error('Error creating direct persistent session:', error);
+      throw error;
+    }
+  }
 }
 
 export const persistentWhatsAppService = new PersistentWhatsAppService();

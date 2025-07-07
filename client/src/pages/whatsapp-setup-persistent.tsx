@@ -55,6 +55,15 @@ export default function WhatsAppSetupPersistent() {
       console.log('Persistent WebSocket connected');
       setConnectionStatus('connected');
       setSocket(ws);
+      
+      // Send connection request immediately
+      const sessionId = `whatsapp_persistent_${Date.now()}`;
+      ws.send(JSON.stringify({
+        type: 'connect',
+        sessionId,
+        userId: 'current_user'
+      }));
+      console.log('Sent connection request:', sessionId);
     };
 
     ws.onmessage = (event) => {
@@ -151,41 +160,86 @@ export default function WhatsAppSetupPersistent() {
     };
   };
 
-  const startConnection = () => {
+  const startConnection = async () => {
     if (isConnecting) return;
     
     setIsConnecting(true);
     setQrCode('');
+    setConnectionStatus('connecting');
     
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      connectWebSocket();
-      // Wait a moment for connection then send message
-      setTimeout(() => {
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          sendConnectionRequest();
-        }
-      }, 1000);
-    } else {
-      sendConnectionRequest();
+    try {
+      // Use direct API call instead of WebSocket for faster QR generation
+      const response = await fetch('/api/whatsapp/qr-persistent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.qrCode) {
+        setQrCode(data.qrCode);
+        setConnectionStatus('qr_ready');
+        
+        toast({
+          title: "QR Code Ready",
+          description: "Scan the QR code with your WhatsApp mobile app"
+        });
+        
+        // Start polling for connection status
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusResponse = await fetch('/api/whatsapp/active-sessions');
+            const statusData = await statusResponse.json();
+            
+            if (statusData.sessions && statusData.sessions.length > 0) {
+              const connectedSession = statusData.sessions.find((s: any) => s.type === 'persistent');
+              if (connectedSession) {
+                setConnectionStatus('connected');
+                setQrCode('');
+                setIsConnecting(false);
+                clearInterval(pollInterval);
+                loadSessions();
+                
+                toast({
+                  title: "WhatsApp Connected!",
+                  description: `Phone: ${connectedSession.phoneNumber}`,
+                });
+              }
+            }
+          } catch (error) {
+            console.error('Status polling error:', error);
+          }
+        }, 2000);
+        
+        // Clear polling after 2 minutes
+        setTimeout(() => {
+          clearInterval(pollInterval);
+          if (connectionStatus !== 'connected') {
+            setIsConnecting(false);
+          }
+        }, 120000);
+        
+      } else {
+        throw new Error(data.message || 'Failed to generate QR code');
+      }
+    } catch (error) {
+      console.error('Connection error:', error);
+      setIsConnecting(false);
+      setConnectionStatus('error');
+      
+      toast({
+        title: "Connection Error",
+        description: error.message || "Failed to start WhatsApp connection",
+        variant: "destructive"
+      });
     }
   };
 
   const sendConnectionRequest = () => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      const sessionId = `whatsapp_persistent_${Date.now()}`;
-      socket.send(JSON.stringify({
-        type: 'connect',
-        sessionId,
-        userId: 'current_user' // This should be actual user ID
-      }));
-    } else {
-      toast({
-        title: "Connection Error",
-        description: "WebSocket not connected. Please try again.",
-        variant: "destructive"
-      });
-      setIsConnecting(false);
-    }
+    // This function is now handled in ws.onopen
   };
 
   const handleDisconnectSession = async (sessionId: string) => {
