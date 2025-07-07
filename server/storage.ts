@@ -56,6 +56,7 @@ export interface IStorage {
   createContact(contact: InsertContact & { userId: string }): Promise<Contact>;
   updateContact(id: number, updates: Partial<Contact>): Promise<Contact>;
   deleteContact(id: number): Promise<void>;
+  bulkCreateContacts(contacts: (InsertContact & { userId: string })[]): Promise<Contact[]>;
   deleteContacts(ids: number[]): Promise<void>;
   bulkCreateContacts(contacts: (InsertContact & { userId: string })[]): Promise<Contact[]>;
   
@@ -228,6 +229,13 @@ export class DatabaseStorage implements IStorage {
 
   async deleteContact(id: number): Promise<void> {
     await db.delete(contacts).where(eq(contacts.id, id));
+  }
+
+  async bulkCreateContacts(contactList: (InsertContact & { userId: string })[]): Promise<Contact[]> {
+    if (contactList.length === 0) return [];
+    
+    const result = await db.insert(contacts).values(contactList).returning();
+    return result;
   }
 
   async deleteContacts(ids: number[]): Promise<void> {
