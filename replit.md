@@ -260,3 +260,5 @@ Changelog:
 - July 07, 2025. Added real-time data sync with automatic refresh intervals across all campaign components
 - July 07, 2025. Enhanced database schema to support multiple templates and WhatsApp numbers per campaign
 - July 07, 2025. Implemented live sync indicator showing real-time data updates to users
+- July 07, 2025. Added comprehensive campaign action buttons (Start, Pause, Delete) with proper backend API integration
+- July 07, 2025. Fixed campaign executor WhatsApp client integration - campaigns can now properly access connected WhatsApp sessions for bulk messaging

@@ -111,23 +111,33 @@ export class CampaignExecutor {
       const whatsappNumbers = await storage.getWhatsappNumbers(campaign.userId);
       const connectedNumbers = whatsappNumbers.filter(number => number.status === 'connected');
       
-      // Get active WhatsApp sessions
-      const sessions = persistentWhatsAppService.getActiveClients();
+      // Get active WhatsApp sessions for this user
+      const userSessions = persistentWhatsAppService.getSessionsByUser(campaign.userId);
+      const connectedSessions = userSessions.filter(session => session.status === 'connected');
       
-      for (const number of connectedNumbers) {
-        const sessionKey = Object.keys(sessions).find(key => 
-          key.includes(number.phoneNumber.replace(/\D/g, '')) || 
-          sessions[key]?.phoneNumber === number.phoneNumber
-        );
-        
-        if (sessionKey && sessions[sessionKey]) {
-          whatsappClients.set(number.phoneNumber, sessions[sessionKey]);
-          numberUsageStats.set(number.phoneNumber, {
-            messagesLastHour: 0,
-            lastUsed: new Date(0), // Long time ago
-            totalSent: 0
-          });
-          console.log(`✓ WhatsApp client ready for number: ${number.phoneNumber}`);
+      console.log(`Found ${connectedSessions.length} connected sessions for user ${campaign.userId}`);
+      
+      for (const session of connectedSessions) {
+        if (session.phoneNumber) {
+          // Find matching number in database
+          const matchingNumber = connectedNumbers.find(number => 
+            number.phoneNumber.replace(/\D/g, '').includes(session.phoneNumber?.replace(/\D/g, '') || '') ||
+            session.phoneNumber.replace(/\D/g, '').includes(number.phoneNumber.replace(/\D/g, ''))
+          );
+          
+          if (matchingNumber) {
+            // Get actual client instance
+            const client = (persistentWhatsAppService as any).clients.get(session.id);
+            if (client) {
+              whatsappClients.set(matchingNumber.phoneNumber, client);
+              numberUsageStats.set(matchingNumber.phoneNumber, {
+                messagesLastHour: 0,
+                lastUsed: new Date(0), // Long time ago
+                totalSent: 0
+              });
+              console.log(`✓ WhatsApp client ready for number: ${matchingNumber.phoneNumber}`);
+            }
+          }
         }
       }
       
