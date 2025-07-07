@@ -115,17 +115,22 @@ export default function AdvancedInbox() {
   // New chat mutation
   const newChatMutation = useMutation({
     mutationFn: async (phoneNumber: string) => {
+      // Clean phone number
+      const cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
+      
       // First create/get contact
       const contactResponse = await apiRequest('POST', '/api/contacts', {
-        name: phoneNumber,
-        phone: phoneNumber.replace(/[^\d]/g, ''),
+        name: cleanPhone,
+        phone: cleanPhone,
         tags: [],
         status: 'active'
       });
       
-      // Then create conversation
+      // Then create conversation with required fields
       return await apiRequest('POST', '/api/conversations', {
-        contactId: contactResponse.id
+        contactId: contactResponse.id,
+        contactName: cleanPhone,
+        contactPhone: cleanPhone
       });
     },
     onSuccess: (newConversation) => {
@@ -139,9 +144,10 @@ export default function AdvancedInbox() {
       });
     },
     onError: (error) => {
+      console.error('New chat creation error:', error);
       toast({
         title: 'Failed to create chat',
-        description: 'Could not create new conversation. Please try again.',
+        description: error?.message || 'Could not create new conversation. Please try again.',
         variant: 'destructive',
       });
     },
@@ -267,6 +273,11 @@ export default function AdvancedInbox() {
                   value={newChatPhone}
                   onChange={(e) => setNewChatPhone(e.target.value)}
                   className="text-sm"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && newChatPhone.trim() && !newChatMutation.isPending) {
+                      newChatMutation.mutate(newChatPhone);
+                    }
+                  }}
                 />
                 <div className="flex gap-2">
                   <Button 

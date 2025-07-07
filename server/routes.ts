@@ -344,7 +344,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/conversations', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const validatedData = insertConversationSchema.parse(req.body);
+      let validatedData = insertConversationSchema.parse(req.body);
+      
+      // If contactName or contactPhone are missing, get them from the contact
+      if (validatedData.contactId && (!validatedData.contactName || !validatedData.contactPhone)) {
+        const contacts = await storage.getContacts(userId);
+        const contact = contacts.find(c => c.id === validatedData.contactId);
+        
+        if (contact) {
+          validatedData = {
+            ...validatedData,
+            contactName: validatedData.contactName || contact.name,
+            contactPhone: validatedData.contactPhone || contact.phone
+          };
+        }
+      }
+      
       const conversation = await storage.createConversation({ ...validatedData, userId });
       res.json(conversation);
     } catch (error) {
