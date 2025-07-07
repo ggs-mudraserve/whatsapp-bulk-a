@@ -268,6 +268,37 @@ export default function WhatsAppSetupPersistent() {
     }
   };
 
+  const handleShowQR = async (sessionId: string) => {
+    try {
+      const response = await fetch('/api/whatsapp/qr-persistent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ sessionId })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.qrCode) {
+        setQrCode(data.qrCode);
+        setConnectionStatus('qr_ready');
+        
+        toast({
+          title: "QR Code Generated",
+          description: "Scan the QR code with your WhatsApp mobile app"
+        });
+      }
+    } catch (error) {
+      console.error('Error generating QR:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate QR code",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'connected':
@@ -422,7 +453,7 @@ export default function WhatsAppSetupPersistent() {
                   </div>
                   <div className="flex items-center gap-3">
                     {getStatusBadge(session.status)}
-                    {session.status === 'connected' && (
+                    {session.status === 'connected' ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -430,7 +461,16 @@ export default function WhatsAppSetupPersistent() {
                       >
                         Disconnect
                       </Button>
-                    )}
+                    ) : (session.status === 'connecting' || session.status === 'qr_ready') ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleShowQR(session.id)}
+                        className="bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100"
+                      >
+                        Show QR
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               ))}

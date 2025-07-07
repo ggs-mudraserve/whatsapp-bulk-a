@@ -165,6 +165,10 @@ Changelog:
 - July 07, 2025. Enhanced TanStack Query error handling to prevent mutation errors from becoming unhandled rejections
 - July 07, 2025. Application now runs completely stable with no crashes, proper error logging, and graceful failure handling
 - July 07, 2025. Both backend and frontend error handling systems work together to provide robust WhatsApp integration
+- July 07, 2025. Fixed incoming message reception - WhatsApp now automatically saves incoming messages to database with proper contact/conversation creation
+- July 07, 2025. Added delete chat functionality with confirmation dialog and proper API endpoint for conversation deletion
+- July 07, 2025. Integrated AI agent functionality directly in inbox with "AI Agent" button and response panel
+- July 07, 2025. Added "Show QR" button for reconnecting sessions - users can now regenerate QR codes when they disappear after initial generation
 - July 07, 2025. Fixed WhatsApp connection persistence issue - sessions now stay alive properly for QR scanning
 - July 07, 2025. Implemented intelligent cleanup logic that prevents premature session termination
 - July 07, 2025. Added real-time connection status polling to track successful QR scans
