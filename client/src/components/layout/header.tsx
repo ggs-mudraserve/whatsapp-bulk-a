@@ -6,11 +6,13 @@ interface HeaderProps {
   subtitle?: string;
   primaryAction?: {
     label: string;
-    onClick: () => void;
+    onClick?: () => void;
+    component?: React.ReactNode;
   };
   secondaryAction?: {
     label: string;
-    onClick: () => void;
+    onClick?: () => void;
+    component?: React.ReactNode;
     icon?: React.ComponentType<any>;
   };
 }
@@ -26,27 +28,24 @@ export default function Header({ title, subtitle, primaryAction, secondaryAction
           )}
         </div>
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-              2
-            </span>
-          </Button>
           {secondaryAction && (
-            <Button 
-              variant="outline" 
-              onClick={secondaryAction.onClick}
-              className="flex items-center"
-            >
-              {secondaryAction.icon && <secondaryAction.icon className="w-4 h-4 mr-2" />}
-              {secondaryAction.label}
-            </Button>
+            secondaryAction.component ? secondaryAction.component : (
+              <Button 
+                variant="outline" 
+                onClick={secondaryAction.onClick}
+                className="flex items-center"
+              >
+                {secondaryAction.icon && <secondaryAction.icon className="w-4 h-4 mr-2" />}
+                {secondaryAction.label}
+              </Button>
+            )
           )}
           {primaryAction && (
-            <Button onClick={primaryAction.onClick} className="flex items-center">
-              <Plus className="w-4 h-4 mr-2" />
-              {primaryAction.label}
-            </Button>
+            primaryAction.component ? primaryAction.component : (
+              <Button onClick={primaryAction.onClick} className="flex items-center">
+                {primaryAction.label}
+              </Button>
+            )
           )}
         </div>
       </div>

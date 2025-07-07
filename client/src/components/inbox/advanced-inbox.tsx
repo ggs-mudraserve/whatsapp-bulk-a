@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile, Bot, Trash2, MessageSquarePlus, Ban, Shield } from 'lucide-react';
+import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile, Bot, Trash2, MessageSquarePlus, Ban, Shield, AlertCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -49,8 +49,8 @@ export default function AdvancedInbox() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
-  // Calculate total unread messages for notification badge
-  const totalUnread = conversations.reduce((sum: number, conv: Conversation) => sum + (conv.unreadCount || 0), 0);
+  // Calculate total unread messages for notification badge with safe check
+  const totalUnread = Array.isArray(conversations) ? conversations.reduce((sum: number, conv: Conversation) => sum + (conv.unreadCount || 0), 0) : 0;
 
 
 
@@ -74,14 +74,14 @@ export default function AdvancedInbox() {
   }, [whatsappSessions]);
 
   // Real-time data fetching with error handling
-  const { data: conversations = [], isLoading: conversationsLoading, refetch: refetchConversations } = useQuery({
+  const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError, refetch: refetchConversations } = useQuery({
     queryKey: ['/api/conversations'],
     refetchInterval: 2000, // Update every 2 seconds
     refetchIntervalInBackground: true,
     retry: 1,
     retryDelay: 500,
-    onError: () => {
-      // Silently handle errors to prevent UI disruption
+    onError: (error) => {
+      console.error('Conversations query error:', error);
     }
   });
 

@@ -59,23 +59,7 @@ export default function Inbox() {
             <AdvancedInbox />
           </ErrorBoundary>
           
-          {/* Floating + Button */}
-          <Dialog open={isDirectMessageOpen} onOpenChange={setIsDirectMessageOpen}>
-            <DialogTrigger asChild>
-              <Button
-                size="icon"
-                className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white z-50"
-              >
-                <Plus className="h-6 w-6" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md mx-auto">
-              <DialogHeader>
-                <DialogTitle>Send Direct Message</DialogTitle>
-              </DialogHeader>
-              <DirectMessage onClose={() => setIsDirectMessageOpen(false)} />
-            </DialogContent>
-          </Dialog>
+
         </main>
       </div>
     </div>
