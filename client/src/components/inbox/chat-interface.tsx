@@ -86,8 +86,8 @@ export default function ChatInterface() {
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(1); // Default to first conversation
   const [messageText, setMessageText] = useState("");
   const [aiEnabled, setAiEnabled] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState<string>(defaultAgents[0].id);
-  const [allAgents, setAllAgents] = useState<AIAgent[]>(defaultAgents);
+  const [selectedAgent, setSelectedAgent] = useState<string>("");
+  const [allAgents, setAllAgents] = useState<AIAgent[]>([]);
   const [showTestPopup, setShowTestPopup] = useState(false);
   const [testMessage, setTestMessage] = useState("");
   const [testResponse, setTestResponse] = useState("");
@@ -101,10 +101,16 @@ export default function ChatInterface() {
       if (customAgents) {
         try {
           const parsed = JSON.parse(customAgents);
-          setAllAgents([...defaultAgents, ...parsed]);
+          setAllAgents(parsed); // Only show custom agents, not defaults
+          if (parsed.length > 0 && !selectedAgent) {
+            setSelectedAgent(parsed[0].id); // Set first custom agent as default
+          }
         } catch (error) {
           console.error('Error loading custom agents:', error);
+          setAllAgents([]); // Empty array if parsing fails
         }
+      } else {
+        setAllAgents([]); // Empty array if no custom agents
       }
     };
 
@@ -348,21 +354,27 @@ export default function ChatInterface() {
             </div>
             
             {aiEnabled && (
-              <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {allAgents.map((agent) => (
-                    <SelectItem key={agent.id} value={agent.id}>
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-3 h-3 rounded-full ${agent.color}`} />
-                        <span className="text-sm">{agent.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              allAgents.length > 0 ? (
+                <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allAgents.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-3 h-3 rounded-full ${agent.color}`} />
+                          <span className="text-sm">{agent.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="text-xs text-gray-500 px-2">
+                  No AI agents created. Go to AI Agents to create one.
+                </div>
+              )
             )}
             
             <Button
