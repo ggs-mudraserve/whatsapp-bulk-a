@@ -484,7 +484,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getChatbotSettings(userId: string): Promise<ChatbotSettings | undefined> {
+    console.log('Getting chatbot settings for user:', userId);
     const [settings] = await db.select().from(chatbotSettings).where(eq(chatbotSettings.userId, userId));
+    console.log('Chatbot settings result:', settings);
     return settings;
   }
 

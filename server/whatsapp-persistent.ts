@@ -521,21 +521,32 @@ class PersistentWhatsAppService {
           // Check if AI chatbot is enabled for the user
           const chatbotSettings = await storage.getChatbotSettings(session.userId);
           
+          console.log('Chatbot settings retrieved:', chatbotSettings);
+          
           if (chatbotSettings && chatbotSettings.enabled) {
             console.log(`🤖 AI agent is enabled for user ${session.userId}, generating auto-reply...`);
             
             // Generate AI response using the AI service
             const { multiAIService } = await import('./ai-service');
             
+            // Ensure we have valid defaults - handle both camelCase and snake_case
             const aiConfig = {
-              provider: chatbotSettings.aiProvider || 'openai',
-              model: chatbotSettings.aiModel || 'gpt-4o',
-              apiKey: chatbotSettings.customApiKey || process.env.OPENAI_API_KEY,
+              provider: chatbotSettings.aiProvider || chatbotSettings.ai_provider || 'openai',
+              model: chatbotSettings.aiModel || chatbotSettings.ai_model || 'gpt-4o',
+              apiKey: chatbotSettings.customApiKey || chatbotSettings.custom_api_key || process.env.OPENAI_API_KEY,
               temperature: chatbotSettings.temperature || 0.7,
-              maxTokens: chatbotSettings.maxTokens || 150
+              maxTokens: chatbotSettings.maxTokens || chatbotSettings.max_tokens || 150
             };
 
-            console.log('Using AI config:', {
+            console.log('Raw chatbot settings:', {
+              aiProvider: chatbotSettings.aiProvider,
+              aiModel: chatbotSettings.aiModel,
+              customApiKey: chatbotSettings.customApiKey ? 'SET' : 'NOT SET',
+              temperature: chatbotSettings.temperature,
+              maxTokens: chatbotSettings.maxTokens
+            });
+
+            console.log('Final AI config:', {
               provider: aiConfig.provider,
               model: aiConfig.model,
               hasApiKey: !!aiConfig.apiKey,
