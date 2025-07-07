@@ -39,15 +39,24 @@ class RobustWhatsAppService {
       ws.on('message', async (message) => {
         try {
           const data = JSON.parse(message.toString());
+          console.log('Processing robust WebSocket message:', data);
           await this.handleMessage(ws, data);
         } catch (error) {
-          console.error('WebSocket error:', error);
-          ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
+          console.error('WebSocket error processing message:', error);
+          ws.send(JSON.stringify({ 
+            type: 'error', 
+            message: 'Invalid message format',
+            error: error.message 
+          }));
         }
       });
 
-      ws.on('close', () => {
-        console.log('Robust WhatsApp WebSocket disconnected');
+      ws.on('error', (error) => {
+        console.error('Robust WebSocket error:', error);
+      });
+
+      ws.on('close', (code, reason) => {
+        console.log('Robust WhatsApp WebSocket disconnected:', code, reason?.toString());
       });
     });
   }

@@ -101,12 +101,30 @@ export default function RobustQRSetup() {
       // Create WebSocket connection to robust service
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${protocol}//${window.location.host}/ws-robust`;
+      console.log("Attempting to connect to:", wsUrl);
+      
       const newSocket = new WebSocket(wsUrl);
 
+      // Add connection timeout
+      const connectionTimeout = setTimeout(() => {
+        console.error("WebSocket connection timeout");
+        newSocket.close();
+        setIsConnecting(false);
+        toast({
+          title: "Connection Timeout",
+          description: "Failed to establish WebSocket connection within 10 seconds",
+          variant: "destructive"
+        });
+      }, 10000);
+
       newSocket.onopen = () => {
-        console.log("Robust WebSocket connected");
+        console.log("Robust WebSocket connected successfully");
+        clearTimeout(connectionTimeout);
+        
         // Send connection request
         const sessionId = `robust_session_${Date.now()}`;
+        console.log("Sending connect message with sessionId:", sessionId, "userId:", user?.id);
+        
         newSocket.send(JSON.stringify({
           type: 'connect',
           sessionId,
@@ -216,9 +234,16 @@ export default function RobustQRSetup() {
         });
       };
 
-      newSocket.onclose = () => {
-        console.log("Robust WebSocket disconnected");
+      newSocket.onclose = (event) => {
+        console.log("Robust WebSocket disconnected", event.code, event.reason);
         setIsConnecting(false);
+        if (event.code !== 1000) { // 1000 is normal closure
+          toast({
+            title: "Connection Lost",
+            description: `WebSocket connection closed unexpectedly (${event.code})`,
+            variant: "destructive"
+          });
+        }
       };
 
       setSocket(newSocket);
