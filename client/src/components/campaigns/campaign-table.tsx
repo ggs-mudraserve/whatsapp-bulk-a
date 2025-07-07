@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Eye, Pause, Play, Trash2, Filter } from "lucide-react";
+import CampaignControls from "./campaign-controls";
+import type { Campaign } from "@shared/schema";
 
 interface CampaignTableProps {
-  campaigns: any[];
+  campaigns: Campaign[];
   loading: boolean;
 }
 
@@ -218,37 +220,8 @@ export default function CampaignTable({ campaigns, loading }: CampaignTableProps
                         <span className="text-sm text-gray-600">{getProgress(campaign)}%</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        {campaign.status === 'active' ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleStatusChange(campaign.id, 'paused')}
-                          >
-                            <Pause className="w-4 h-4" />
-                          </Button>
-                        ) : campaign.status !== 'completed' ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleStatusChange(campaign.id, 'active')}
-                          >
-                            <Play className="w-4 h-4" />
-                          </Button>
-                        ) : null}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(campaign.id)}
-                          className="text-red-500 hover:text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <CampaignControls campaign={campaign} />
                     </td>
                   </tr>
                 ))

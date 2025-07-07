@@ -7,6 +7,8 @@ import Header from "@/components/layout/header";
 import StatsCard from "@/components/dashboard/stats-card";
 import CampaignTable from "@/components/campaigns/campaign-table";
 import CampaignForm from "@/components/campaigns/campaign-form";
+import BulkMessageForm from "@/components/campaigns/bulk-message-form";
+import DailyUploadScheduler from "@/components/campaigns/daily-upload-scheduler";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Play, Clock, Check } from "lucide-react";
 
@@ -65,6 +67,12 @@ export default function Campaigns() {
             label: "Create Campaign",
             onClick: () => setShowCreateForm(true)
           }}
+          secondaryAction={{
+            label: "Bulk Message",
+            component: <BulkMessageForm onSuccess={() => {
+              // Refresh campaigns after bulk message creation
+            }} />
+          }}
         />
         <main className="flex-1 overflow-auto p-6">
           {/* Campaign Stats */}
@@ -93,7 +101,14 @@ export default function Campaigns() {
           </div>
 
           {/* Campaigns Table */}
-          <CampaignTable campaigns={campaigns} loading={campaignsLoading} />
+          <div className="space-y-8">
+            <CampaignTable campaigns={campaigns} loading={campaignsLoading} />
+            
+            {/* Daily Upload Scheduler */}
+            <DailyUploadScheduler onScheduleCreated={() => {
+              // Refresh campaigns or handle schedule creation
+            }} />
+          </div>
 
           {/* Create Campaign Dialog */}
           <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>

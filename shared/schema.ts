@@ -109,8 +109,10 @@ export const campaigns = pgTable("campaigns", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: varchar("name").notNull(),
+  message: text("message"),
   templateId: integer("template_id").references(() => templates.id, { onDelete: "set null" }),
-  status: varchar("status").default("draft"), // draft, active, paused, completed, cancelled
+  whatsappNumberId: integer("whatsapp_number_id").references(() => whatsappNumbers.id, { onDelete: "set null" }),
+  status: varchar("status").default("draft"), // draft, scheduled, active, paused, completed, cancelled
   totalContacts: integer("total_contacts").default(0),
   messagesSent: integer("messages_sent").default(0),
   messagesDelivered: integer("messages_delivered").default(0),
@@ -120,6 +122,14 @@ export const campaigns = pgTable("campaigns", {
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
   contactIds: jsonb("contact_ids").$type<number[]>().default([]),
+  targetGroups: jsonb("target_groups").$type<number[]>().default([]),
+  targetContacts: jsonb("target_contacts").$type<number[]>().default([]),
+  antiBlockingSettings: jsonb("anti_blocking_settings").$type<{
+    enabled: boolean;
+    messageDelay?: number;
+    randomizeDelay?: boolean;
+    delayRange?: [number, number];
+  }>().default({ enabled: false }),
   messageDelayMin: integer("message_delay_min").default(2),
   messageDelayMax: integer("message_delay_max").default(8),
   createdAt: timestamp("created_at").defaultNow(),

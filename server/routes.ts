@@ -8,6 +8,7 @@ import { workingWhatsAppService } from "./whatsapp-working";
 import { persistentWhatsAppService } from "./whatsapp-persistent";
 import { chatbotService } from "./openai";
 import { multiAIService } from "./ai-service";
+import { campaignExecutor } from "./campaign-executor";
 import { 
   insertContactGroupSchema,
   insertContactSchema, 
@@ -390,9 +391,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/campaigns', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const validatedData = insertCampaignSchema.parse(req.body);
-      const campaign = await storage.createCampaign({ ...validatedData, userId });
-      res.json(campaign);
+      const { 
+        targetGroups, 
+        targetContacts, 
+        antiBlockingSettings,
+        ...campaignData 
+      } = req.body;
+
+      // Validate the core campaign data
+      const validatedData = insertCampaignSchema.parse(campaignData);
+      
+      // Create the campaign
+      const campaign = await storage.createCampaign({ 
+        ...validatedData, 
+        userId,
+        // Store target groups and contacts as JSON
+        targetGroups: targetGroups || [],
+        targetContacts: targetContacts || [],
+        antiBlockingSettings: antiBlockingSettings || { enabled: false }
+      });
+
+      // If campaign is scheduled to start immediately, we could trigger execution here
+      // For now, just return the created campaign
+      res.status(201).json(campaign);
     } catch (error) {
       console.error("Error creating campaign:", error);
       res.status(500).json({ message: "Failed to create campaign" });
@@ -418,6 +439,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting campaign:", error);
       res.status(500).json({ message: "Failed to delete campaign" });
+    }
+  });
+
+  // Campaign execution routes
+  app.post('/api/campaigns/:id/start', isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      await campaignExecutor.startCampaign(campaignId);
+      res.json({ success: true, message: 'Campaign started successfully' });
+    } catch (error) {
+      console.error("Error starting campaign:", error);
+      res.status(500).json({ message: `Failed to start campaign: ${error.message}` });
+    }
+  });
+
+  app.post('/api/campaigns/:id/pause', isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      await campaignExecutor.pauseCampaign(campaignId);
+      res.json({ success: true, message: 'Campaign paused successfully' });
+    } catch (error) {
+      console.error("Error pausing campaign:", error);
+      res.status(500).json({ message: "Failed to pause campaign" });
+    }
+  });
+
+  app.post('/api/campaigns/:id/stop', isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      await campaignExecutor.stopCampaign(campaignId);
+      res.json({ success: true, message: 'Campaign stopped successfully' });
+    } catch (error) {
+      console.error("Error stopping campaign:", error);
+      res.status(500).json({ message: "Failed to stop campaign" });
+    }
+  });
+
+  app.get('/api/campaigns/executing', isAuthenticated, async (req: any, res) => {
+    try {
+      const executingCampaigns = campaignExecutor.getExecutingCampaigns();
+      res.json({ campaigns: executingCampaigns });
+    } catch (error) {
+      console.error("Error getting executing campaigns:", error);
+      res.status(500).json({ message: "Failed to get executing campaigns" });
     }
   });
 
