@@ -538,15 +538,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "WhatsApp number not found" });
       }
 
+      // Create or find contact first
+      let contacts = await storage.getContacts(userId);
+      let existingContact = contacts.find(contact => contact.phoneNumber === recipientPhone);
+      
+      if (!existingContact) {
+        existingContact = await storage.createContact({
+          userId,
+          name: recipientPhone.replace('+', ''),
+          phoneNumber: recipientPhone,
+          status: 'active'
+        });
+      }
+
       // Create or find conversation
-      let conversation = await storage.getConversations(userId);
-      let existingConversation = conversation.find(conv => conv.contactPhone === recipientPhone);
+      let conversations = await storage.getConversations(userId);
+      let existingConversation = conversations.find(conv => conv.contactId === existingContact.id);
       
       if (!existingConversation) {
         existingConversation = await storage.createConversation({
           userId,
-          contactName: recipientPhone.replace('+', ''),
-          contactPhone: recipientPhone,
+          contactId: existingContact.id,
+          whatsappNumberId: whatsappNumberId,
+          contactName: existingContact.name,
+          contactPhone: existingContact.phoneNumber,
           lastMessage: message,
           lastMessageAt: new Date(),
           unreadCount: 0,
@@ -554,6 +569,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tags: [],
         });
       }
+
+      // Update conversation with latest message
+      await storage.updateConversation(existingConversation.id, {
+        lastMessage: message,
+        lastMessageAt: new Date(),
+      });
 
       // Create message record
       await storage.createMessage({

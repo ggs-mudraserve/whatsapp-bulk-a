@@ -50,6 +50,12 @@ export default function DirectMessage({ onClose }: DirectMessageProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+      
+      // Force refresh to ensure immediate updates
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ["/api/conversations"] });
+      }, 500);
+      
       toast({
         title: "Message Sent",
         description: "Your message has been sent successfully.",
