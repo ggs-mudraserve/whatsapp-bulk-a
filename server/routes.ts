@@ -564,9 +564,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Import whatsapp-web.js using createRequire for ES modules
       const { createRequire } = await import('module');
+      const { execSync } = await import('child_process');
       const require = createRequire(import.meta.url);
       const { Client, LocalAuth } = require('whatsapp-web.js');
       console.log('Imported whatsapp-web.js:', { Client: typeof Client, LocalAuth: typeof LocalAuth });
+      
+      // Find chromium executable path
+      let chromiumPath;
+      try {
+        chromiumPath = execSync('which chromium', { encoding: 'utf8' }).trim();
+      } catch (e) {
+        chromiumPath = '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium';
+      }
+      console.log('Using Chromium path:', chromiumPath);
       const QRCode = await import('qrcode');
       const fs = await import('fs');
       const path = await import('path');
@@ -589,6 +599,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }),
         puppeteer: {
           headless: true,
+          executablePath: chromiumPath,
           args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
