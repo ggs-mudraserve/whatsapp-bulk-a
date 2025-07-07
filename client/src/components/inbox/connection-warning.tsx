@@ -28,7 +28,7 @@ export default function ConnectionWarning() {
           variant="outline" 
           size="sm" 
           className="ml-4 border-orange-300 text-orange-700 hover:bg-orange-100"
-          onClick={() => window.location.href = '/whatsapp-setup'}
+          onClick={() => window.location.href = '/whatsapp-persistent'}
         >
           <Settings className="w-4 h-4 mr-2" />
           Connect WhatsApp
