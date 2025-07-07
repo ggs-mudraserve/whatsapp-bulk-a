@@ -22,7 +22,6 @@ interface BulkMessageFormProps {
 
 export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
   const { toast } = useToast();
-  const [showDialog, setShowDialog] = useState(false);
   
   // Form state
   const [campaignName, setCampaignName] = useState("");
@@ -334,22 +333,7 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
   };
 
   return (
-    <Dialog open={showDialog} onOpenChange={setShowDialog}>
-      <DialogTrigger asChild>
-        <Button variant="outline">
-          <Send className="w-4 h-4 mr-2" />
-          Bulk Message
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5" />
-            Create Bulk Message Campaign
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6">
+    <div className="space-y-6">
           {/* Campaign Details */}
           <Card>
             <CardHeader className="pb-3">
@@ -849,7 +833,5 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
   );
 }

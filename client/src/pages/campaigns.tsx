@@ -65,9 +65,7 @@ export default function Campaigns() {
           subtitle="Create and manage your marketing campaigns"
           primaryAction={{
             label: "Bulk Message",
-            component: <BulkMessageForm onSuccess={() => {
-              // Refresh campaigns after bulk message creation
-            }} />
+            onClick: () => setShowCreateForm(true)
           }}
           secondaryAction={{
             label: "Simple Campaign",
@@ -110,13 +108,15 @@ export default function Campaigns() {
             }} />
           </div>
 
-          {/* Simple Campaign Dialog */}
+          {/* Bulk Message Campaign Dialog */}
           <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create Simple Campaign</DialogTitle>
+                <DialogTitle>Create Bulk Message Campaign</DialogTitle>
               </DialogHeader>
-              <CampaignForm onSuccess={() => setShowCreateForm(false)} />
+              <div className="p-4">
+                <BulkMessageForm onSuccess={() => setShowCreateForm(false)} />
+              </div>
             </DialogContent>
           </Dialog>
         </main>

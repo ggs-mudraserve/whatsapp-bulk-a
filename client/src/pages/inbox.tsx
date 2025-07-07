@@ -3,11 +3,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
-import AdvancedInbox from "@/components/inbox/advanced-inbox";
 import DirectMessage from "@/components/inbox/direct-message";
 import ErrorBoundary from "@/components/error-boundary";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { MessageCircle } from "lucide-react";
 import { Plus } from "lucide-react";
 
 
@@ -56,10 +57,16 @@ export default function Inbox() {
         />
         <main className="flex-1 overflow-auto p-6">
           <ErrorBoundary>
-            <AdvancedInbox />
+            <Card className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-xl font-semibold mb-2 text-gray-700">Inbox Coming Soon</h3>
+                <p className="text-gray-500 max-w-sm">
+                  We're working on bringing you an amazing inbox experience. This feature will be available shortly.
+                </p>
+              </div>
+            </Card>
           </ErrorBoundary>
-          
-
         </main>
       </div>
     </div>
