@@ -63,14 +63,31 @@ export default function CleanInbox() {
   const aiAgentActive = aiAgentState.isActive && aiAgentState.conversationId === selectedConversationId;
   const selectedAiAgent = aiAgentActive ? aiAgentState.selectedAgent : '';
 
-  // Available AI Agents
-  const aiAgents = [
-    { id: 'sales', name: 'Sales Expert', icon: '💼' },
-    { id: 'support', name: 'Customer Support', icon: '🎧' },
-    { id: 'marketing', name: 'Marketing Guru', icon: '📈' },
-    { id: 'tech', name: 'Tech Advisor', icon: '🔧' },
-    { id: 'business', name: 'Business Consultant', icon: '📊' }
-  ];
+  // Get AI Agents from localStorage (synced with AI Agents page)
+  const [customAgents, setCustomAgents] = useState(() => {
+    const saved = localStorage.getItem('whatsapp-custom-agents');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Update agents when localStorage changes (real-time sync)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem('whatsapp-custom-agents');
+      setCustomAgents(saved ? JSON.parse(saved) : []);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check periodically for changes from same tab
+    const interval = setInterval(handleStorageChange, 1000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  const aiAgents = customAgents;
 
   // Fetch conversations
   const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError, refetch: refetchConversations } = useQuery({
@@ -422,7 +439,7 @@ export default function CleanInbox() {
                       )}
                       {aiAgentActive && selectedAiAgent && (
                         <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                          {aiAgents.find(a => a.id === selectedAiAgent)?.icon} AI Active
+                          {aiAgents.find(a => a.id === selectedAiAgent)?.icon || '🤖'} AI Active
                         </Badge>
                       )}
                     </div>
@@ -602,21 +619,39 @@ export default function CleanInbox() {
                 ×
               </Button>
             </div>
-            <div className="space-y-2">
-              {aiAgents.map((agent) => (
+            
+            {aiAgents.length === 0 ? (
+              <div className="text-center py-6 text-gray-500">
+                <p className="text-sm">No AI agents created yet</p>
+                <p className="text-xs mt-1">Create agents in the AI Agents page first</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2"
+                  onClick={() => window.location.href = '/ai-agents'}
+                >
+                  Create AI Agents
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {aiAgents.map((agent) => (
                 <div
                   key={agent.id}
                   className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer flex items-center space-x-3"
                   onClick={() => handleSelectAiAgent(agent.id)}
                 >
-                  <span className="text-2xl">{agent.icon}</span>
+                  <div className={`p-2 rounded-lg ${agent.color || 'bg-gray-500'}`}>
+                    <span className="text-white text-sm">{agent.icon || '🤖'}</span>
+                  </div>
                   <div>
                     <h4 className="font-medium text-sm">{agent.name}</h4>
-                    <p className="text-xs text-gray-600">AI-powered assistant</p>
+                    <p className="text-xs text-gray-600">{agent.role || 'AI-powered assistant'}</p>
                   </div>
                 </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

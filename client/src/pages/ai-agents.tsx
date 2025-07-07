@@ -230,7 +230,7 @@ export default function AIAgents() {
     setIsCreating(true);
   };
 
-  const handleSaveAgent = () => {
+  const handleSaveAgent = async () => {
     if (!editingAgent) return;
     
     if (!editingAgent.name.trim() || !editingAgent.role.trim() || !editingAgent.prompt.trim() || !editingAgent.aiProvider || !editingAgent.aiModel) {
@@ -246,7 +246,7 @@ export default function AIAgents() {
       setCustomAgents(prev => [...prev, editingAgent]);
       toast({
         title: "Agent Created",
-        description: `${editingAgent.name} has been created successfully.`,
+        description: `${editingAgent.name} has been created successfully and synced to inbox.`,
       });
     } else {
       setCustomAgents(prev => prev.map(agent => 
@@ -254,19 +254,26 @@ export default function AIAgents() {
       ));
       toast({
         title: "Agent Updated",
-        description: `${editingAgent.name} has been updated successfully.`,
+        description: `${editingAgent.name} has been updated successfully and synced to inbox.`,
       });
     }
+    
+    // Trigger real-time sync across all components
+    await triggerSync();
     
     setEditingAgent(null);
     setIsCreating(false);
   };
 
-  const handleDeleteAgent = (agentId: string) => {
+  const handleDeleteAgent = async (agentId: string) => {
     setCustomAgents(prev => prev.filter(agent => agent.id !== agentId));
+    
+    // Trigger real-time sync to update inbox
+    await triggerSync();
+    
     toast({
       title: "Agent Deleted",
-      description: "Custom agent has been removed.",
+      description: "Custom agent has been removed and synced across all pages.",
     });
   };
 
