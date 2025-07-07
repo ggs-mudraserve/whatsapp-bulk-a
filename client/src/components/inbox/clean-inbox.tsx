@@ -79,6 +79,14 @@ export default function CleanInbox() {
   // Fetch messages for selected conversation
   const { data: messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useQuery({
     queryKey: ['/api/messages', selectedConversationId],
+    queryFn: async () => {
+      if (!selectedConversationId) return [];
+      const response = await fetch(`/api/messages?conversationId=${selectedConversationId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch messages');
+      return response.json();
+    },
     enabled: !!selectedConversationId,
     refetchInterval: 2000,
   });

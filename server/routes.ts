@@ -706,10 +706,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const conversationId = parseInt(req.params.id);
+      
+      console.log(`Creating message for conversation ${conversationId}: "${req.body.content}"`);
+      
       const validatedData = insertMessageSchema.parse({
-        ...req.body,
+        content: req.body.content,
         conversationId,
+        direction: 'outgoing',
         timestamp: new Date(),
+        status: 'sent',
+        messageType: 'text'
       });
 
       // Get conversation details to find the recipient
