@@ -597,7 +597,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             '--no-first-run',
             '--no-zygote',
             '--single-process',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
+            '--disable-extensions',
+            '--disable-default-apps'
           ]
         }
       });
