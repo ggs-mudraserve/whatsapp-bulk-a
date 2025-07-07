@@ -52,6 +52,10 @@ export const queryClient = new QueryClient({
     },
     mutations: {
       retry: false,
+      onError: (error: any) => {
+        console.warn('TanStack Query mutation error:', error);
+        // Don't re-throw to prevent unhandled rejections
+      },
     },
   },
 });

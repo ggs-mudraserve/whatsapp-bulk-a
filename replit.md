@@ -161,4 +161,7 @@ Changelog:
 - July 07, 2025. Added process-level error handlers for unhandled rejections and uncaught exceptions to prevent server crashes
 - July 07, 2025. Improved cleanup function to check socket state before logout to prevent "Connection Closed" errors
 - July 07, 2025. Wrapped all Baileys event handlers in try-catch blocks for graceful error handling
-- July 07, 2025. Application now runs stably without crashes even when WhatsApp connections fail or close unexpectedly
+- July 07, 2025. Added frontend global error handlers to catch unhandled promise rejections and prevent console errors
+- July 07, 2025. Enhanced TanStack Query error handling to prevent mutation errors from becoming unhandled rejections
+- July 07, 2025. Application now runs completely stable with no crashes, proper error logging, and graceful failure handling
+- July 07, 2025. Both backend and frontend error handling systems work together to provide robust WhatsApp integration
