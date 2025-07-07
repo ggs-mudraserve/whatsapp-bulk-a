@@ -564,12 +564,25 @@ class PersistentWhatsAppService {
               maxTokens: aiConfig.maxTokens
             });
             
+            // Get conversation history from database for context
+            const conversationHistory = await storage.getMessagesByConversation(conversation.id);
+            const recentMessages = conversationHistory.slice(-6).map(msg => 
+              `${msg.isFromUser ? 'Customer' : 'Assistant'}: ${msg.content}`
+            );
+
             const aiResponse = await multiAIService.generateResponse(
               messageBody,
               aiConfig,
               {
                 customerName: conversation.contactName || fromNumber,
-                businessName: "WhatsApp Marketing Assistant"
+                businessName: chatbotSettings.businessName,
+                customInstructions: chatbotSettings.customInstructions,
+                previousMessages: recentMessages,
+                webAppData: {
+                  contacts: await storage.getContactsByUserId(chatbotSettings.userId),
+                  conversations: await storage.getConversationsByUserId(chatbotSettings.userId),
+                  whatsappNumbers: await storage.getWhatsAppNumbersByUserId(chatbotSettings.userId)
+                }
               }
             );
 

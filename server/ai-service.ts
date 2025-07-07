@@ -24,15 +24,7 @@ export interface AIProviderConfig {
 }
 
 export class MultiProviderAIService {
-  private defaultPersonality = `You are a helpful WhatsApp marketing assistant. You help customers with:
-- Product inquiries and recommendations
-- Order status and tracking
-- General support questions
-- Business information and hours
-- Pricing and availability
-- Technical support
-
-Keep responses concise, friendly, and professional. Always try to be helpful while maintaining a natural conversational tone. If you cannot help with something, politely redirect to human support.`;
+  // No default personality - AI uses only user's custom prompt
 
   // Create provider-specific client
   private createClient(config: AIProviderConfig) {
@@ -77,20 +69,39 @@ Keep responses concise, friendly, and professional. Always try to be helpful whi
       previousMessages?: string[];
       businessName?: string;
       customInstructions?: string;
+      webAppData?: {
+        contacts?: any[];
+        conversations?: any[];
+        whatsappNumbers?: any[];
+      };
     }
   ): Promise<ChatbotResponse> {
     try {
       const client = this.createClient(config);
       
-      // Build context-aware system prompt with business context
-      let systemPrompt = this.defaultPersonality;
+      // Use ONLY the user's custom prompt - no default personality
+      let systemPrompt = '';
       
-      if (context?.businessName && context?.customInstructions) {
-        systemPrompt = `You represent ${context.businessName}. ${context.customInstructions}
-
-Keep responses helpful, professional, and focused on loan assistance. Always try to understand the customer's specific needs and guide them appropriately.`;
-      } else if (context?.customInstructions) {
+      if (context?.customInstructions) {
+        // Use exclusively the user's custom instructions
         systemPrompt = context.customInstructions;
+        
+        // Add web application data context if available
+        if (context.webAppData) {
+          const dataContext = `
+
+Current Application Data:
+- Total Contacts: ${context.webAppData.contacts?.length || 0}
+- Active Conversations: ${context.webAppData.conversations?.length || 0}  
+- Connected WhatsApp Numbers: ${context.webAppData.whatsappNumbers?.length || 0}
+- Customer Name: ${context.customerName || 'Unknown'}
+
+Use this real-time data from the application to provide accurate, context-aware responses.`;
+          systemPrompt += dataContext;
+        }
+      } else {
+        // Fallback only if no custom instructions provided
+        systemPrompt = "You are a helpful assistant.";
       }
 
       // Add conversation context
