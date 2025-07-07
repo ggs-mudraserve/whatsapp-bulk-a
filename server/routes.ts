@@ -9,6 +9,7 @@ import { persistentWhatsAppService } from "./whatsapp-persistent";
 import { chatbotService } from "./openai";
 import { multiAIService } from "./ai-service";
 import { 
+  insertContactGroupSchema,
   insertContactSchema, 
   insertTemplateSchema, 
   insertCampaignSchema, 
@@ -180,6 +181,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Contact Groups routes
+  app.get('/api/contact-groups', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const groups = await storage.getContactGroups(userId);
+      res.json(groups);
+    } catch (error) {
+      console.error("Error fetching contact groups:", error);
+      res.status(500).json({ message: "Failed to fetch contact groups" });
+    }
+  });
+
+  app.post('/api/contact-groups', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const groupData = insertContactGroupSchema.parse(req.body);
+      const group = await storage.createContactGroup({ ...groupData, userId });
+      res.status(201).json(group);
+    } catch (error) {
+      console.error("Error creating contact group:", error);
+      res.status(500).json({ message: "Failed to create contact group" });
+    }
+  });
+
+  app.patch('/api/contact-groups/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = insertContactGroupSchema.partial().parse(req.body);
+      const group = await storage.updateContactGroup(id, updates);
+      res.json(group);
+    } catch (error) {
+      console.error("Error updating contact group:", error);
+      res.status(500).json({ message: "Failed to update contact group" });
+    }
+  });
+
+  app.delete('/api/contact-groups/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteContactGroup(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting contact group:", error);
+      res.status(500).json({ message: "Failed to delete contact group" });
+    }
+  });
+
   // Contacts routes
   app.get('/api/contacts', isAuthenticated, async (req: any, res) => {
     try {
@@ -245,6 +293,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error bulk deleting contacts:", error);
       res.status(500).json({ message: "Failed to bulk delete contacts" });
+    }
+  });
+
+  app.post('/api/contacts/bulk-upload', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { contacts: contactsData } = req.body;
+      
+      if (!Array.isArray(contactsData) || contactsData.length === 0) {
+        return res.status(400).json({ message: "No contacts provided" });
+      }
+
+      // Validate each contact
+      const validatedContacts = contactsData.map(contact => 
+        insertContactSchema.parse(contact)
+      );
+
+      // Add userId to each contact
+      const contactsWithUserId = validatedContacts.map(contact => ({ 
+        ...contact, 
+        userId 
+      }));
+
+      const createdContacts = await storage.bulkCreateContacts(contactsWithUserId);
+      
+      res.status(201).json({ 
+        success: true, 
+        count: createdContacts.length,
+        contacts: createdContacts 
+      });
+    } catch (error) {
+      console.error("Error bulk uploading contacts:", error);
+      res.status(500).json({ message: "Failed to bulk upload contacts" });
     }
   });
 

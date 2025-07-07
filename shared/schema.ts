@@ -64,10 +64,22 @@ export const whatsappNumbers = pgTable("whatsapp_numbers", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Contact groups for organizing contacts
+export const contactGroups = pgTable("contact_groups", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  color: varchar("color").default("#3B82F6"), // hex color for visual identification
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Contacts database
 export const contacts = pgTable("contacts", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  groupId: integer("group_id").references(() => contactGroups.id, { onDelete: "set null" }),
   name: varchar("name").notNull(),
   phoneNumber: varchar("phone_number").notNull(),
   email: varchar("email"),
@@ -198,8 +210,14 @@ export const whatsappNumbersRelations = relations(whatsappNumbers, ({ one, many 
   conversations: many(conversations),
 }));
 
+export const contactGroupsRelations = relations(contactGroups, ({ one, many }) => ({
+  user: one(users, { fields: [contactGroups.userId], references: [users.id] }),
+  contacts: many(contacts),
+}));
+
 export const contactsRelations = relations(contacts, ({ one, many }) => ({
   user: one(users, { fields: [contacts.userId], references: [users.id] }),
+  group: one(contactGroups, { fields: [contacts.groupId], references: [contactGroups.id] }),
   conversations: many(conversations),
 }));
 
@@ -237,6 +255,7 @@ export const insertUserSchema = createInsertSchema(users);
 export const insertWhatsappNumberSchema = createInsertSchema(whatsappNumbers).omit({ id: true, createdAt: true, updatedAt: true }).extend({
   lastActivity: z.date().optional()
 });
+export const insertContactGroupSchema = createInsertSchema(contactGroups).omit({ id: true, userId: true, createdAt: true, updatedAt: true });
 export const insertContactSchema = createInsertSchema(contacts).omit({ id: true, userId: true, createdAt: true, updatedAt: true });
 export const insertTemplateSchema = createInsertSchema(templates).omit({ id: true, userId: true, usageCount: true, createdAt: true, updatedAt: true });
 export const insertCampaignSchema = createInsertSchema(campaigns).omit({ id: true, userId: true, createdAt: true, updatedAt: true });
@@ -250,6 +269,8 @@ export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type WhatsappNumber = typeof whatsappNumbers.$inferSelect;
 export type InsertWhatsappNumber = z.infer<typeof insertWhatsappNumberSchema>;
+export type ContactGroup = typeof contactGroups.$inferSelect;
+export type InsertContactGroup = z.infer<typeof insertContactGroupSchema>;
 export type Contact = typeof contacts.$inferSelect;
 export type InsertContact = z.infer<typeof insertContactSchema>;
 export type Template = typeof templates.$inferSelect;

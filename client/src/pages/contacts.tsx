@@ -7,19 +7,30 @@ import Header from "@/components/layout/header";
 import StatsCard from "@/components/dashboard/stats-card";
 import ContactTable from "@/components/contacts/contact-table";
 import ContactForm from "@/components/contacts/contact-form";
+import ContactGroups from "@/components/contacts/contact-groups";
+import BulkUpload from "@/components/contacts/bulk-upload";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Users, CheckCircle, Tags, Ban, Upload } from "lucide-react";
+import type { Contact } from "@shared/schema";
 
 export default function Contacts() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
 
-  const { data: contacts, isLoading: contactsLoading } = useQuery({
+  const { data: contacts = [], isLoading: contactsLoading } = useQuery({
     queryKey: ["/api/contacts"],
     retry: false,
   });
+
+  // Filter contacts based on selected group
+  const filteredContacts = selectedGroupId === null 
+    ? contacts 
+    : selectedGroupId === 0 
+      ? contacts.filter((contact: Contact) => !contact.groupId)
+      : contacts.filter((contact: Contact) => contact.groupId === selectedGroupId);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -86,9 +97,10 @@ export default function Contacts() {
             onClick: () => setShowCreateForm(true)
           }}
           secondaryAction={{
-            label: "Import CSV",
-            onClick: handleImportCSV,
-            icon: Upload
+            label: "Bulk Upload",
+            component: <BulkUpload onUploadComplete={() => {
+              // Refresh data
+            }} />
           }}
         />
         <main className="flex-1 overflow-auto p-6">
@@ -124,8 +136,25 @@ export default function Contacts() {
             />
           </div>
 
-          {/* Contacts Table */}
-          <ContactTable contacts={contacts} loading={contactsLoading} />
+          {/* Main Content Area with Groups and Table */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Contact Groups Sidebar */}
+            <div className="lg:col-span-1">
+              <ContactGroups 
+                contacts={contacts}
+                selectedGroupId={selectedGroupId}
+                onGroupSelect={setSelectedGroupId}
+              />
+            </div>
+
+            {/* Contact Table */}
+            <div className="lg:col-span-3">
+              <ContactTable 
+                contacts={filteredContacts} 
+                loading={contactsLoading}
+              />
+            </div>
+          </div>
 
           {/* Create Contact Dialog */}
           <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>

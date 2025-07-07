@@ -1,6 +1,7 @@
 import {
   users,
   whatsappNumbers,
+  contactGroups,
   contacts,
   templates,
   campaigns,
@@ -11,6 +12,8 @@ import {
   type UpsertUser,
   type WhatsappNumber,
   type InsertWhatsappNumber,
+  type ContactGroup,
+  type InsertContactGroup,
   type Contact,
   type InsertContact,
   type Template,
@@ -42,12 +45,19 @@ export interface IStorage {
   updateWhatsappNumber(id: number, updates: Partial<WhatsappNumber>): Promise<WhatsappNumber>;
   deleteWhatsappNumber(id: number): Promise<void>;
   
+  // Contact Groups
+  getContactGroups(userId: string): Promise<ContactGroup[]>;
+  createContactGroup(group: InsertContactGroup & { userId: string }): Promise<ContactGroup>;
+  updateContactGroup(id: number, updates: Partial<ContactGroup>): Promise<ContactGroup>;
+  deleteContactGroup(id: number): Promise<void>;
+  
   // Contacts
   getContacts(userId: string): Promise<Contact[]>;
   createContact(contact: InsertContact & { userId: string }): Promise<Contact>;
   updateContact(id: number, updates: Partial<Contact>): Promise<Contact>;
   deleteContact(id: number): Promise<void>;
   deleteContacts(ids: number[]): Promise<void>;
+  bulkCreateContacts(contacts: (InsertContact & { userId: string })[]): Promise<Contact[]>;
   
   // Templates
   getTemplates(userId: string): Promise<Template[]>;
@@ -153,6 +163,43 @@ export class DatabaseStorage implements IStorage {
     await db.delete(whatsappNumbers).where(eq(whatsappNumbers.id, id));
   }
 
+  // Contact Groups
+  async getContactGroups(userId: string): Promise<ContactGroup[]> {
+    return await db
+      .select()
+      .from(contactGroups)
+      .where(eq(contactGroups.userId, userId))
+      .orderBy(desc(contactGroups.createdAt));
+  }
+
+  async createContactGroup(group: InsertContactGroup & { userId: string }): Promise<ContactGroup> {
+    const [result] = await db
+      .insert(contactGroups)
+      .values([group])
+      .returning();
+    return result;
+  }
+
+  async updateContactGroup(id: number, updates: Partial<ContactGroup>): Promise<ContactGroup> {
+    const [result] = await db
+      .update(contactGroups)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(contactGroups.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteContactGroup(id: number): Promise<void> {
+    // First, remove group assignment from contacts
+    await db
+      .update(contacts)
+      .set({ groupId: null })
+      .where(eq(contacts.groupId, id));
+    
+    // Then delete the group
+    await db.delete(contactGroups).where(eq(contactGroups.id, id));
+  }
+
   // Contacts
   async getContacts(userId: string): Promise<Contact[]> {
     return await db
@@ -185,6 +232,16 @@ export class DatabaseStorage implements IStorage {
 
   async deleteContacts(ids: number[]): Promise<void> {
     await db.delete(contacts).where(inArray(contacts.id, ids));
+  }
+
+  async bulkCreateContacts(contactsData: (InsertContact & { userId: string })[]): Promise<Contact[]> {
+    if (contactsData.length === 0) return [];
+    
+    const results = await db
+      .insert(contacts)
+      .values(contactsData)
+      .returning();
+    return results;
   }
 
   // Templates
