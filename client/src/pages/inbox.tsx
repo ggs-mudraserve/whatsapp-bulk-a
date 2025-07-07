@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
-import AdvancedInbox from "@/components/inbox/advanced-inbox";
+import WorkingInbox from "@/components/inbox/working-inbox";
 import DirectMessage from "@/components/inbox/direct-message";
 import ErrorBoundary from "@/components/error-boundary";
 import { Plus } from "lucide-react";
@@ -54,7 +54,7 @@ export default function Inbox() {
         />
         <main className="flex-1 overflow-auto p-6">
           <ErrorBoundary>
-            <AdvancedInbox />
+            <WorkingInbox />
           </ErrorBoundary>
         </main>
       </div>
