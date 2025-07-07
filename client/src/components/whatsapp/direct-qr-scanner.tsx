@@ -14,10 +14,12 @@ interface QRResponse {
   sessionId?: string;
   qrCode?: string;
   message: string;
+  expiresIn?: number;
 }
 
 export default function DirectQRScanner() {
   const [qrData, setQrData] = useState<QRResponse | null>(null);
+  const [sessionTimeLeft, setSessionTimeLeft] = useState<number | null>(null);
   const { toast } = useToast();
   const { user, isLoading } = useAuth();
 
@@ -44,8 +46,23 @@ export default function DirectQRScanner() {
         console.log("Showing success toast");
         toast({
           title: "QR Code Generated!",
-          description: "Scan the QR code with your WhatsApp mobile app"
+          description: "Session will stay active for 2 minutes. Scan quickly with your WhatsApp mobile app."
         });
+        
+        // Start countdown timer
+        if (data.expiresIn) {
+          setSessionTimeLeft(data.expiresIn);
+          const timer = setInterval(() => {
+            setSessionTimeLeft(prev => {
+              if (prev && prev > 1) {
+                return prev - 1;
+              } else {
+                clearInterval(timer);
+                return null;
+              }
+            });
+          }, 1000);
+        }
       } else {
         console.log("Data success or QR code missing", { success: data.success, hasQR: !!data.qrCode });
         toast({
@@ -185,6 +202,21 @@ export default function DirectQRScanner() {
               
               <div className="space-y-3">
                 <p className="text-sm font-medium">Scan this QR code with your WhatsApp mobile app</p>
+                
+                {sessionTimeLeft && sessionTimeLeft > 0 && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                    <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                      <RefreshCw className="w-4 h-4" />
+                      <span className="text-sm font-medium">
+                        Session Active: {Math.floor(sessionTimeLeft / 60)}:{(sessionTimeLeft % 60).toString().padStart(2, '0')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                      QR code stays valid for scanning. Session will auto-expire when timer reaches 0.
+                    </p>
+                  </div>
+                )}
+                
                 <div className="text-xs text-muted-foreground bg-gray-50 dark:bg-gray-800 p-3 rounded space-y-2">
                   <p><strong>How to scan:</strong></p>
                   <ol className="list-decimal list-inside space-y-1">
@@ -193,6 +225,9 @@ export default function DirectQRScanner() {
                     <li>Tap "Link a Device"</li>
                     <li>Point your camera at this QR code</li>
                   </ol>
+                  <p className="text-green-600 dark:text-green-400 font-medium mt-2">
+                    ✓ Session is kept alive for 2 minutes to ensure successful linking
+                  </p>
                 </div>
               </div>
             </div>

@@ -625,20 +625,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      // Set up QR generation
+      // Set up QR generation with persistent session
       let qrGenerated = false;
       let connectionTimeout: NodeJS.Timeout;
+      let sessionActive = true;
       
-      const cleanup = () => {
-        try {
-          socket.logout();
-        } catch (e) {}
+      // Store active sessions to keep them alive
+      const activeSessionKey = `${userId}_${sessionId}`;
+      global.activeSessions = global.activeSessions || new Map();
+      
+      const cleanup = (immediate = false) => {
+        sessionActive = false;
+        global.activeSessions?.delete(activeSessionKey);
         
-        try {
-          if (fs.existsSync(authDir)) {
-            fs.rmSync(authDir, { recursive: true, force: true });
-          }
-        } catch (e) {}
+        if (immediate) {
+          try {
+            socket.logout();
+          } catch (e) {}
+        } else {
+          // Keep socket alive for 2 minutes to allow scanning
+          setTimeout(() => {
+            try {
+              socket.logout();
+            } catch (e) {}
+          }, 120000);
+        }
+        
+        // Clean auth directory after delay
+        setTimeout(() => {
+          try {
+            if (fs.existsSync(authDir)) {
+              fs.rmSync(authDir, { recursive: true, force: true });
+            }
+          } catch (e) {}
+        }, 180000); // 3 minutes
         
         if (connectionTimeout) {
           clearTimeout(connectionTimeout);
@@ -650,7 +670,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (qr && !qrGenerated) {
           qrGenerated = true;
-          console.log('QR Code generated successfully');
+          console.log('QR Code generated successfully - keeping session alive for scanning');
+          
+          // Store the active session
+          global.activeSessions.set(activeSessionKey, {
+            socket,
+            sessionId,
+            userId,
+            createdAt: new Date(),
+            authDir
+          });
           
           try {
             const qrCodeDataUrl = await QRCode.default.toDataURL(qr, {
@@ -662,19 +691,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             });
             
-            cleanup();
+            // DON'T cleanup immediately - keep session alive
             
-            // Send QR code immediately
+            // Send QR code with instructions
             res.json({
               success: true,
               sessionId,
               qrCode: qrCodeDataUrl,
-              message: 'QR code generated successfully'
+              message: 'QR code generated successfully. Session will remain active for 2 minutes for scanning.',
+              expiresIn: 120
             });
             
           } catch (qrError) {
             console.error('QR generation error:', qrError);
-            cleanup();
+            cleanup(true);
             if (!res.headersSent) {
               res.status(500).json({ 
                 success: false,
@@ -684,8 +714,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        if (connection === 'open') {
+          console.log(`WhatsApp connected successfully for session ${sessionId}`);
+          // Connection successful, but don't cleanup - let it stay connected
+        }
+        
         if (connection === 'close') {
-          cleanup();
+          console.log(`WhatsApp connection closed for session ${sessionId}`);
+          cleanup(true);
           if (!qrGenerated && !res.headersSent) {
             res.status(500).json({ 
               success: false,
@@ -718,6 +754,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: false,
         message: `Failed to generate QR code: ${error.message}` 
       });
+    }
+  });
+
+  // Check active WhatsApp sessions
+  app.get('/api/whatsapp/session-status/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId } = req.params;
+      const activeSessionKey = `${userId}_${sessionId}`;
+      
+      global.activeSessions = global.activeSessions || new Map();
+      const session = global.activeSessions.get(activeSessionKey);
+      
+      if (session) {
+        const timeElapsed = Date.now() - session.createdAt.getTime();
+        const remainingTime = Math.max(0, 120000 - timeElapsed); // 2 minutes
+        
+        res.json({
+          active: true,
+          remainingTime: Math.ceil(remainingTime / 1000),
+          message: 'Session is active and ready for QR scanning'
+        });
+      } else {
+        res.json({
+          active: false,
+          remainingTime: 0,
+          message: 'Session expired or not found'
+        });
+      }
+    } catch (error) {
+      console.error("Error checking session status:", error);
+      res.status(500).json({ message: "Failed to check session status" });
     }
   });
 
