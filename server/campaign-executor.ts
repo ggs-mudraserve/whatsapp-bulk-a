@@ -185,16 +185,34 @@ export class CampaignExecutor {
     let failedCount = 0;
     let deliveredCount = 0;
 
-    console.log(`Executing messaging for campaign "${campaign.name}" to ${contacts.length} contacts`);
+    console.log(`🚀 Starting campaign execution: "${campaign.name}" to ${contacts.length} contacts`);
+    console.log(`📱 Available WhatsApp clients: ${whatsappClients.size}`);
+    
+    // Update campaign status to active
+    await storage.updateCampaign(campaign.id, { 
+      status: 'active',
+      startedAt: new Date()
+    });
 
     try {
-      // Get the message content
+      // Get the message content from templates
       let messageContent = campaign.message;
-      if (campaign.templateId) {
+      
+      // Handle multiple templates (new schema) or single template (legacy)
+      if (campaign.templateIds && campaign.templateIds.length > 0) {
+        const templates = await storage.getTemplates(campaign.userId);
+        const template = templates.find(t => campaign.templateIds.includes(t.id));
+        if (template) {
+          messageContent = template.content;
+          console.log(`✓ Using template: ${template.name}`);
+        }
+      } else if (campaign.templateId) {
+        // Legacy single template support
         const templates = await storage.getTemplates(campaign.userId);
         const template = templates.find(t => t.id === campaign.templateId);
         if (template) {
           messageContent = template.content;
+          console.log(`✓ Using legacy template: ${template.name}`);
         }
       }
 
