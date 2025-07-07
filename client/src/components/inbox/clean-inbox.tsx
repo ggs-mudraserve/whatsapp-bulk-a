@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useRealtimeSync, useAIAgentState } from '@/hooks/useRealtimeSync';
+import SyncIndicator from '@/components/realtime/sync-indicator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,11 +51,17 @@ export default function CleanInbox() {
   const [messageText, setMessageText] = useState('');
   const [selectedNumber, setSelectedNumber] = useState<string>('all');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [aiAgentActive, setAiAgentActive] = useState(false);
-  const [selectedAiAgent, setSelectedAiAgent] = useState('');
   const [showAiAgentDialog, setShowAiAgentDialog] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Real-time sync and AI agent state
+  const { triggerSync } = useRealtimeSync();
+  const { state: aiAgentState, activateAgent, deactivateAgent } = useAIAgentState();
+  
+  // Get AI agent status for current conversation
+  const aiAgentActive = aiAgentState.isActive && aiAgentState.conversationId === selectedConversationId;
+  const selectedAiAgent = aiAgentActive ? aiAgentState.selectedAgent : '';
 
   // Available AI Agents
   const aiAgents = [
@@ -193,30 +201,20 @@ export default function CleanInbox() {
   };
 
   const handleAiAgentToggle = async () => {
+    if (!selectedConversationId) return;
+    
     if (!aiAgentActive) {
       setShowAiAgentDialog(true);
     } else {
-      try {
-        // Deactivate AI agent
-        const response = await fetch(`/api/conversations/${selectedConversationId}/ai-agent`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ 
-            active: false, 
-            agentType: null 
-          }),
-        });
-        
-        if (!response.ok) throw new Error('Failed to deactivate AI agent');
-        
-        setAiAgentActive(false);
-        setSelectedAiAgent('');
+      const success = await deactivateAgent(selectedConversationId);
+      
+      if (success) {
+        await triggerSync(); // Trigger immediate sync across all components
         toast({
           title: 'AI Agent deactivated',
           description: 'Auto-replies are now disabled',
         });
-      } catch (error) {
+      } else {
         toast({
           title: 'Failed to deactivate AI agent',
           description: 'Please try again',
@@ -227,28 +225,18 @@ export default function CleanInbox() {
   };
 
   const handleSelectAiAgent = async (agentId: string) => {
-    try {
-      // Call backend to activate AI agent for this conversation
-      const response = await fetch(`/api/conversations/${selectedConversationId}/ai-agent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ 
-          active: true, 
-          agentType: agentId 
-        }),
-      });
-      
-      if (!response.ok) throw new Error('Failed to activate AI agent');
-      
-      setSelectedAiAgent(agentId);
-      setAiAgentActive(true);
+    if (!selectedConversationId) return;
+    
+    const success = await activateAgent(selectedConversationId, agentId);
+    
+    if (success) {
       setShowAiAgentDialog(false);
+      await triggerSync(); // Trigger immediate sync across all components
       toast({
         title: 'AI Agent activated',
         description: `${aiAgents.find(a => a.id === agentId)?.name} is now handling this conversation`,
       });
-    } catch (error) {
+    } else {
       toast({
         title: 'Failed to activate AI agent',
         description: 'Please try again',

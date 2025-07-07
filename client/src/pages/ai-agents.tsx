@@ -3,6 +3,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useRealtimeSync, useAIAgentState } from "@/hooks/useRealtimeSync";
+import SyncIndicator from "@/components/realtime/sync-indicator";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,6 +88,10 @@ export default function AIAgents() {
   const [selectedTab, setSelectedTab] = useState("agents");
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  
+  // Real-time sync and AI agent state management
+  const { triggerSync } = useRealtimeSync();
+  const { state: aiAgentState } = useAIAgentState();
   
   // Get custom agents from localStorage
   const [customAgents, setCustomAgents] = useState<Agent[]>(() => {
@@ -264,9 +270,15 @@ export default function AIAgents() {
     });
   };
 
-  const testAgent = (agentId: string) => {
-    const message = "Hello, I need help with my business.";
-    testResponseMutation.mutate({ message, agentId });
+  const testAgent = async (agentId: string) => {
+    try {
+      const message = "Hello, I need help with my business.";
+      await testResponseMutation.mutateAsync({ message, agentId });
+      // Trigger real-time sync to update inbox and other components
+      await triggerSync();
+    } catch (error) {
+      console.error('Test failed:', error);
+    }
   };
 
   const [testMessage, setTestMessage] = useState("Hello, I need help with my business.");
@@ -691,6 +703,21 @@ export default function AIAgents() {
                           💡 Test how your AI agents respond to different messages. All test conversations automatically sync with your inbox for easy review.
                         </p>
                       </div>
+                      
+                      {/* Real-time AI Agent Status */}
+                      {aiAgentState.isActive && (
+                        <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            <p className="text-sm text-green-700 font-medium">
+                              AI Agent Active: {allAgents.find(a => a.id === aiAgentState.selectedAgent)?.name || 'Unknown'}
+                            </p>
+                          </div>
+                          <p className="text-xs text-green-600 mt-1">
+                            Currently handling conversation #{aiAgentState.conversationId}
+                          </p>
+                        </div>
+                      )}
                       <div className="grid gap-2">
                         {allAgents.map((agent) => {
                           const IconComponent = agent.icon || Bot;
