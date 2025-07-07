@@ -38,6 +38,18 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
   const [randomizeDelay, setRandomizeDelay] = useState(true);
   const [delayMin, setDelayMin] = useState(3);
   const [delayMax, setDelayMax] = useState(8);
+  
+  // Advanced anti-blocking settings
+  const [useMultipleNumbers, setUseMultipleNumbers] = useState(true);
+  const [numberRotationStrategy, setNumberRotationStrategy] = useState<'sequential' | 'random' | 'load_balanced'>('load_balanced');
+  const [messagesPerNumberPerHour, setMessagesPerNumberPerHour] = useState(20);
+  const [cooldownBetweenNumbers, setCooldownBetweenNumbers] = useState(2);
+  const [simulateTyping, setSimulateTyping] = useState(true);
+  const [randomizeMessageOrder, setRandomizeMessageOrder] = useState(false);
+  const [respectBusinessHours, setRespectBusinessHours] = useState(false);
+  const [businessHoursStart, setBusinessHoursStart] = useState("09:00");
+  const [businessHoursEnd, setBusinessHoursEnd] = useState("17:00");
+  const [skipWeekends, setSkipWeekends] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvContacts, setCsvContacts] = useState<{name: string, phoneNumber: string}[]>([]);
   const [showCsvUpload, setShowCsvUpload] = useState(false);
@@ -212,6 +224,16 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
     setCsvContacts([]);
     setShowCsvUpload(false);
     setCreateGroupFromCampaign(true);
+    setUseMultipleNumbers(true);
+    setNumberRotationStrategy('load_balanced');
+    setMessagesPerNumberPerHour(20);
+    setCooldownBetweenNumbers(2);
+    setSimulateTyping(true);
+    setRandomizeMessageOrder(false);
+    setRespectBusinessHours(false);
+    setBusinessHoursStart("09:00");
+    setBusinessHoursEnd("17:00");
+    setSkipWeekends(false);
     setShowDialog(false);
   };
 
@@ -260,6 +282,16 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
       messageDelay: randomizeDelay ? undefined : messageDelay,
       randomizeDelay,
       delayRange: randomizeDelay ? [delayMin, delayMax] : undefined,
+      useMultipleNumbers,
+      numberRotationStrategy,
+      messagesPerNumberPerHour,
+      cooldownBetweenNumbers,
+      simulateTyping,
+      randomizeMessageOrder,
+      respectBusinessHours,
+      businessHoursStart: respectBusinessHours ? businessHoursStart : undefined,
+      businessHoursEnd: respectBusinessHours ? businessHoursEnd : undefined,
+      skipWeekends,
     };
 
     // Prepare schedule
@@ -581,10 +613,10 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
 
               <Separator />
 
-              {/* Anti-blocking Settings */}
+              {/* Advanced Anti-blocking Settings */}
               <div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">Anti-blocking Protection</Label>
+                  <Label className="text-sm font-medium">Advanced Anti-blocking Protection</Label>
                   <Switch
                     checked={antiBlockingEnabled}
                     onCheckedChange={setAntiBlockingEnabled}
@@ -592,56 +624,212 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
                 </div>
                 
                 {antiBlockingEnabled && (
-                  <div className="mt-3 space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="randomizeDelay"
-                        checked={randomizeDelay}
-                        onCheckedChange={(checked) => setRandomizeDelay(checked as boolean)}
-                      />
-                      <Label htmlFor="randomizeDelay" className="text-sm">
-                        Randomize message delays
-                      </Label>
+                  <div className="mt-3 space-y-4">
+                    {/* Basic Delay Settings */}
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="randomizeDelay"
+                          checked={randomizeDelay}
+                          onCheckedChange={(checked) => setRandomizeDelay(checked as boolean)}
+                        />
+                        <Label htmlFor="randomizeDelay" className="text-sm">
+                          Randomize message delays
+                        </Label>
+                      </div>
+
+                      {randomizeDelay ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label htmlFor="delayMin" className="text-xs">Min delay (seconds)</Label>
+                            <Input
+                              id="delayMin"
+                              type="number"
+                              min="1"
+                              max="60"
+                              value={delayMin}
+                              onChange={(e) => setDelayMin(parseInt(e.target.value) || 3)}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="delayMax" className="text-xs">Max delay (seconds)</Label>
+                            <Input
+                              id="delayMax"
+                              type="number"
+                              min="1"
+                              max="60"
+                              value={delayMax}
+                              onChange={(e) => setDelayMax(parseInt(e.target.value) || 8)}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <Label htmlFor="messageDelay" className="text-xs">Fixed delay (seconds)</Label>
+                          <Input
+                            id="messageDelay"
+                            type="number"
+                            min="1"
+                            max="60"
+                            value={messageDelay}
+                            onChange={(e) => setMessageDelay(parseInt(e.target.value) || 5)}
+                          />
+                        </div>
+                      )}
                     </div>
 
-                    {randomizeDelay ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label htmlFor="delayMin" className="text-xs">Min delay (seconds)</Label>
-                          <Input
-                            id="delayMin"
-                            type="number"
-                            min="1"
-                            max="60"
-                            value={delayMin}
-                            onChange={(e) => setDelayMin(parseInt(e.target.value) || 3)}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="delayMax" className="text-xs">Max delay (seconds)</Label>
-                          <Input
-                            id="delayMax"
-                            type="number"
-                            min="1"
-                            max="60"
-                            value={delayMax}
-                            onChange={(e) => setDelayMax(parseInt(e.target.value) || 8)}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <Label htmlFor="messageDelay" className="text-xs">Fixed delay (seconds)</Label>
-                        <Input
-                          id="messageDelay"
-                          type="number"
-                          min="1"
-                          max="60"
-                          value={messageDelay}
-                          onChange={(e) => setMessageDelay(parseInt(e.target.value) || 5)}
+                    <Separator />
+
+                    {/* Multiple Numbers Settings */}
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="useMultipleNumbers"
+                          checked={useMultipleNumbers}
+                          onCheckedChange={(checked) => setUseMultipleNumbers(checked as boolean)}
                         />
+                        <Label htmlFor="useMultipleNumbers" className="text-sm font-medium">
+                          Use multiple WhatsApp numbers for load balancing
+                        </Label>
                       </div>
-                    )}
+
+                      {useMultipleNumbers && (
+                        <div className="space-y-3 ml-6">
+                          <div>
+                            <Label htmlFor="rotationStrategy" className="text-xs">Number rotation strategy</Label>
+                            <Select value={numberRotationStrategy} onValueChange={(value: any) => setNumberRotationStrategy(value)}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="load_balanced">Load Balanced (Recommended)</SelectItem>
+                                <SelectItem value="sequential">Sequential</SelectItem>
+                                <SelectItem value="random">Random</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Load balanced distributes messages evenly across numbers
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label htmlFor="messagesPerHour" className="text-xs">Max messages per number/hour</Label>
+                              <Input
+                                id="messagesPerHour"
+                                type="number"
+                                min="5"
+                                max="100"
+                                value={messagesPerNumberPerHour}
+                                onChange={(e) => setMessagesPerNumberPerHour(parseInt(e.target.value) || 20)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="cooldownBetween" className="text-xs">Cooldown between numbers (sec)</Label>
+                              <Input
+                                id="cooldownBetween"
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={cooldownBetweenNumbers}
+                                onChange={(e) => setCooldownBetweenNumbers(parseInt(e.target.value) || 2)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <Separator />
+
+                    {/* Behavior Simulation */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Human Behavior Simulation</Label>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="simulateTyping"
+                            checked={simulateTyping}
+                            onCheckedChange={(checked) => setSimulateTyping(checked as boolean)}
+                          />
+                          <Label htmlFor="simulateTyping" className="text-sm">
+                            Simulate typing delay before sending
+                          </Label>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="randomizeOrder"
+                            checked={randomizeMessageOrder}
+                            onCheckedChange={(checked) => setRandomizeMessageOrder(checked as boolean)}
+                          />
+                          <Label htmlFor="randomizeOrder" className="text-sm">
+                            Randomize message sending order
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Time-based Restrictions */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Time-based Restrictions</Label>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="respectBusinessHours"
+                            checked={respectBusinessHours}
+                            onCheckedChange={(checked) => setRespectBusinessHours(checked as boolean)}
+                          />
+                          <Label htmlFor="respectBusinessHours" className="text-sm">
+                            Only send during business hours
+                          </Label>
+                        </div>
+
+                        {respectBusinessHours && (
+                          <div className="grid grid-cols-2 gap-2 ml-6">
+                            <div>
+                              <Label htmlFor="startTime" className="text-xs">Start time</Label>
+                              <Input
+                                id="startTime"
+                                type="time"
+                                value={businessHoursStart}
+                                onChange={(e) => setBusinessHoursStart(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="endTime" className="text-xs">End time</Label>
+                              <Input
+                                id="endTime"
+                                type="time"
+                                value={businessHoursEnd}
+                                onChange={(e) => setBusinessHoursEnd(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="skipWeekends"
+                            checked={skipWeekends}
+                            onCheckedChange={(checked) => setSkipWeekends(checked as boolean)}
+                          />
+                          <Label htmlFor="skipWeekends" className="text-sm">
+                            Skip weekends (Saturday & Sunday)
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-50 p-3 rounded-lg">
+                      <p className="text-xs text-amber-800">
+                        <strong>Advanced Protection:</strong> These settings help prevent account restrictions by mimicking natural messaging patterns and distributing load across multiple numbers.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

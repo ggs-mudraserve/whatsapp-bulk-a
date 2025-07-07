@@ -129,6 +129,16 @@ export const campaigns = pgTable("campaigns", {
     messageDelay?: number;
     randomizeDelay?: boolean;
     delayRange?: [number, number];
+    useMultipleNumbers?: boolean;
+    numberRotationStrategy?: 'sequential' | 'random' | 'load_balanced';
+    messagesPerNumberPerHour?: number;
+    cooldownBetweenNumbers?: number;
+    simulateTyping?: boolean;
+    randomizeMessageOrder?: boolean;
+    respectBusinessHours?: boolean;
+    businessHoursStart?: string;
+    businessHoursEnd?: string;
+    skipWeekends?: boolean;
   }>().default({ enabled: false }),
   messageDelayMin: integer("message_delay_min").default(2),
   messageDelayMax: integer("message_delay_max").default(8),

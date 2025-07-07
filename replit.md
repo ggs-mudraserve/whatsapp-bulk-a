@@ -215,3 +215,5 @@ Changelog:
 - July 07, 2025. Added modern WhatsApp-style UI with avatars, status indicators, and message status icons
 - July 07, 2025. Enhanced message sending with immediate UI feedback and proper error handling- July 07, 2025. Added CSV upload functionality to campaign creation with automatic contact group creation using campaign name
 - July 07, 2025. Implemented bulk contact import with format validation and automatic group assignment for marketing campaigns
+- July 07, 2025. Implemented advanced anti-blocking system with multiple WhatsApp number load balancing and intelligent rotation strategies
+- July 07, 2025. Added sophisticated campaign protection with typing simulation, business hours restrictions, and human-like messaging patterns
