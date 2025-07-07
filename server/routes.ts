@@ -558,9 +558,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/whatsapp/generate-qr-direct', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const sessionId = `whatsapp_session_${Date.now()}`;
+      const sessionId = `whatsapp_session_${userId}_${Date.now()}`;
       
-      console.log(`Starting WhatsApp QR generation for user ${userId}`);
+      console.log(`Starting WhatsApp QR generation for user ${userId}, session: ${sessionId}`);
+      
+      // Check if user has too many active sessions
+      global.activeSessions = global.activeSessions || new Map();
+      const userSessions = Array.from(global.activeSessions.keys()).filter(key => key.startsWith(`${userId}_`));
+      
+      if (userSessions.length >= 5) {
+        return res.status(429).json({
+          success: false,
+          message: 'Maximum number of WhatsApp sessions reached (5). Please disconnect some numbers first.'
+        });
+      }
       
       // Import whatsapp-web.js using createRequire for ES modules
       const { createRequire } = await import('module');
@@ -621,9 +632,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let connectionTimeout: NodeJS.Timeout;
       let sessionActive = true;
       
-      // Store active sessions
+      // Store active sessions with better isolation
       const activeSessionKey = `${userId}_${sessionId}`;
-      global.activeSessions = global.activeSessions || new Map();
+      global.activeSessions.set(activeSessionKey, {
+        sessionId,
+        userId,
+        createdAt: new Date(),
+        client,
+        status: 'initializing'
+      });
       
       const cleanup = async (immediate = false) => {
         if (!sessionActive) return;
@@ -704,15 +721,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Client ready (successful connection)
-      client.on('ready', () => {
+      client.on('ready', async () => {
         console.log(`WhatsApp client ready for session ${sessionId}`);
         
-        // Update session with connection info
-        const session = global.activeSessions.get(activeSessionKey);
-        if (session) {
-          session.connected = true;
-          session.connectedAt = new Date();
-          session.phoneNumber = client.info?.wid?.user || 'Connected';
+        try {
+          // Get phone number info
+          const info = client.info;
+          const phoneNumber = info?.wid?.user ? `+${info.wid.user}` : null;
+          
+          // Update session with connection info
+          const session = global.activeSessions.get(activeSessionKey);
+          if (session) {
+            session.connected = true;
+            session.connectedAt = new Date();
+            session.phoneNumber = phoneNumber || 'Connected';
+          }
+          
+          // Save phone number to database
+          if (phoneNumber) {
+            await storage.createWhatsappNumber({
+              userId,
+              phoneNumber,
+              status: 'connected',
+              qrConnected: true
+            });
+            console.log(`Phone number ${phoneNumber} saved for session ${sessionId}`);
+          }
+        } catch (e) {
+          console.log('Error saving phone number:', e);
         }
         
         clearTimeout(connectionTimeout);
@@ -758,6 +794,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false,
         message: `Failed to generate QR code: ${error.message}` 
+      });
+    }
+  });
+
+  // List active WhatsApp sessions
+  app.get('/api/whatsapp/active-sessions', isAuthenticated, (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      global.activeSessions = global.activeSessions || new Map();
+      
+      const userSessions = Array.from(global.activeSessions.entries())
+        .filter(([key, session]) => session.userId === userId)
+        .map(([key, session]) => ({
+          sessionId: session.sessionId,
+          phoneNumber: session.phoneNumber || 'Connecting...',
+          connected: session.connected || false,
+          createdAt: session.createdAt,
+          connectedAt: session.connectedAt
+        }));
+
+      res.json({
+        success: true,
+        sessions: userSessions,
+        total: userSessions.length
+      });
+    } catch (error) {
+      console.error('Error fetching active sessions:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to fetch active sessions' 
+      });
+    }
+  });
+
+  // Disconnect a WhatsApp session
+  app.delete('/api/whatsapp/session/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId } = req.params;
+      const activeSessionKey = `${userId}_${sessionId}`;
+      
+      global.activeSessions = global.activeSessions || new Map();
+      const session = global.activeSessions.get(activeSessionKey);
+      
+      if (!session) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Session not found' 
+        });
+      }
+      
+      // Disconnect the client
+      if (session.client) {
+        try {
+          await session.client.destroy();
+        } catch (e) {
+          console.log('Client destroy error:', e);
+        }
+      }
+      
+      // Remove from active sessions
+      global.activeSessions.delete(activeSessionKey);
+      
+      res.json({
+        success: true,
+        message: 'Session disconnected successfully'
+      });
+    } catch (error) {
+      console.error('Error disconnecting session:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to disconnect session' 
       });
     }
   });

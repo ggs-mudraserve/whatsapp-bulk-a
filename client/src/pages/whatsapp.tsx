@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
+import ConnectedNumbers from "@/components/whatsapp/connected-numbers";
 
 interface QRResponse {
   success: boolean;
@@ -284,6 +285,11 @@ export default function WhatsApp() {
                 </div>
               </div>
             </div>
+          </div>
+          
+          {/* Connected Numbers Section */}
+          <div className="max-w-4xl mx-auto mt-8">
+            <ConnectedNumbers />
           </div>
         </main>
       </div>

@@ -1,147 +1,197 @@
-import { useMutation } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { isUnauthorizedError } from "@/lib/authUtils";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { MessageCircle, X, Smartphone } from "lucide-react";
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Smartphone, Trash2, RefreshCw } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 
-interface ConnectedNumbersProps {
-  numbers: any[];
-  loading: boolean;
+interface ActiveSession {
+  sessionId: string;
+  phoneNumber: string;
+  connected: boolean;
+  createdAt: string;
+  connectedAt?: string;
 }
 
-export default function ConnectedNumbers({ numbers, loading }: ConnectedNumbersProps) {
-  const { toast } = useToast();
+interface ActiveSessionsResponse {
+  success: boolean;
+  sessions: ActiveSession[];
+  total: number;
+}
 
-  const deleteNumberMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/whatsapp-numbers/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp-numbers"] });
-      toast({
-        title: "Number disconnected",
-        description: "WhatsApp number has been disconnected successfully.",
+export default function ConnectedNumbers() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: sessions, isLoading, refetch } = useQuery<ActiveSessionsResponse>({
+    queryKey: ['/api/whatsapp/active-sessions'],
+    refetchInterval: 5000, // Refresh every 5 seconds
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      return apiRequest(`/api/whatsapp/session/${sessionId}`, {
+        method: 'DELETE',
       });
     },
-    onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
+    onSuccess: () => {
       toast({
-        title: "Error",
-        description: "Failed to disconnect WhatsApp number.",
-        variant: "destructive",
+        title: 'Success',
+        description: 'WhatsApp number disconnected successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/whatsapp/active-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/whatsapp-numbers'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to disconnect WhatsApp number',
+        variant: 'destructive',
       });
     },
   });
 
-  const handleDisconnect = (id: number) => {
-    if (confirm("Are you sure you want to disconnect this WhatsApp number?")) {
-      deleteNumberMutation.mutate(id);
+  const formatPhoneNumber = (phoneNumber: string) => {
+    if (phoneNumber.startsWith('+')) {
+      return phoneNumber;
     }
+    return `+${phoneNumber}`;
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge variant="default">Active</Badge>;
-      case 'limited':
-        return <Badge variant="secondary">Limited</Badge>;
-      case 'blocked':
-        return <Badge variant="destructive">Blocked</Badge>;
-      case 'disconnected':
-        return <Badge variant="outline">Disconnected</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString();
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-500';
-      case 'limited':
-        return 'bg-yellow-500';
-      case 'blocked':
-        return 'bg-red-500';
-      case 'disconnected':
-        return 'bg-gray-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Smartphone className="h-5 w-5" />
+            Connected WhatsApp Numbers
+          </CardTitle>
+          <CardDescription>
+            Manage your active WhatsApp connections
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <RefreshCw className="h-6 w-6 animate-spin" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const activeSessions = sessions?.sessions || [];
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Connected Numbers</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Smartphone className="h-5 w-5" />
+            Connected WhatsApp Numbers
+          </CardTitle>
+          <CardDescription>
+            {activeSessions.length > 0 
+              ? `You have ${activeSessions.length} active WhatsApp connection${activeSessions.length > 1 ? 's' : ''}`
+              : 'No active WhatsApp connections'
+            }
+          </CardDescription>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => refetch()}
+          disabled={isLoading}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {loading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="animate-pulse flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                  <div className="space-y-2">
-                    <div className="h-4 bg-gray-200 rounded w-32"></div>
-                    <div className="h-3 bg-gray-200 rounded w-24"></div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="h-6 bg-gray-200 rounded-full w-16"></div>
-                  <div className="h-6 bg-gray-200 rounded w-6"></div>
-                </div>
-              </div>
-            ))
-          ) : numbers && numbers.length > 0 ? (
-            numbers.map((number: any) => (
-              <div key={number.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getStatusColor(number.status)}`}>
-                    <MessageCircle className="w-5 h-5 text-white" />
+        {activeSessions.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Smartphone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg font-medium mb-2">No WhatsApp Numbers Connected</p>
+            <p className="text-sm">
+              Generate a QR code above to connect your first WhatsApp number
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {activeSessions.map((session) => (
+              <div 
+                key={session.sessionId} 
+                className="flex items-center justify-between p-4 border rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0">
+                    <Smartphone className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-800">
-                      {number.displayName || number.phoneNumber}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {number.displayName ? number.phoneNumber : `${number.accountType} Account`}
-                    </p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium">
+                        {formatPhoneNumber(session.phoneNumber)}
+                      </span>
+                      <Badge 
+                        variant={session.connected ? "default" : "secondary"}
+                        className={session.connected ? "bg-green-100 text-green-800 border-green-300" : ""}
+                      >
+                        {session.connected ? 'Connected' : 'Connecting...'}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Created: {formatTime(session.createdAt)}
+                      {session.connectedAt && (
+                        <span className="ml-2">
+                          • Connected: {formatTime(session.connectedAt)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  {getStatusBadge(number.status)}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDisconnect(number.id)}
-                    className="text-red-500 hover:text-red-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      disabled={disconnectMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Disconnect
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Disconnect WhatsApp Number</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to disconnect {formatPhoneNumber(session.phoneNumber)}? 
+                        This will end the WhatsApp session and you'll need to scan a QR code again to reconnect.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => disconnectMutation.mutate(session.sessionId)}
+                        className="bg-red-600 hover:bg-red-700"
+                        disabled={disconnectMutation.isPending}
+                      >
+                        {disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
-            ))
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Smartphone className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p className="font-medium">No WhatsApp numbers connected</p>
-              <p className="text-sm">Connect your first WhatsApp number to get started</p>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

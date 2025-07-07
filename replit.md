@@ -173,3 +173,7 @@ Changelog:
 - July 07, 2025. Switched from Baileys to whatsapp-web.js library as requested by user for better stability
 - July 07, 2025. Fixed ES module import issues with whatsapp-web.js using createRequire for CommonJS compatibility
 - July 07, 2025. Implemented robust Puppeteer-based WhatsApp client with proper session management
+- July 07, 2025. Enhanced multi-number support with proper session isolation and management
+- July 07, 2025. Added connected numbers dashboard with real-time status monitoring
+- July 07, 2025. Implemented session disconnect functionality to prevent conflicts between multiple numbers
+- July 07, 2025. Added session limits (5 per user) and improved session persistence
