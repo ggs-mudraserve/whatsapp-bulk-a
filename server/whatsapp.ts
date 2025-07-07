@@ -1,4 +1,4 @@
-import { makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+// Baileys imports removed - using whatsapp-web.js instead
 import { Boom } from '@hapi/boom';
 import QRCode from 'qrcode';
 import { WebSocketServer } from 'ws';
