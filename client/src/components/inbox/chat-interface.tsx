@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Select,
   SelectContent,
@@ -18,8 +19,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Paperclip, Send, Tag, MoreVertical, MessageCircle, Bot, Sparkles, User, RefreshCw } from "lucide-react";
+import { Paperclip, Send, Tag, MoreVertical, MessageCircle, Bot, Sparkles, User, RefreshCw, CheckCheck, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useConversation } from "@/contexts/conversation-context";
+import { format, isToday, isYesterday } from 'date-fns';
 
 interface AIAgent {
   id: string;
@@ -83,7 +86,7 @@ const defaultAgents: AIAgent[] = [
 ];
 
 export default function ChatInterface() {
-  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(1); // Default to first conversation
+  const { selectedConversation } = useConversation();
   const [messageText, setMessageText] = useState("");
   const [aiEnabled, setAiEnabled] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
@@ -92,6 +95,7 @@ export default function ChatInterface() {
   const [testMessage, setTestMessage] = useState("");
   const [testResponse, setTestResponse] = useState("");
   const [isTestingAgent, setIsTestingAgent] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   // Load custom agents from localStorage on mount
@@ -169,17 +173,10 @@ export default function ChatInterface() {
   });
 
   const { data: messages, isLoading: messagesLoading } = useQuery({
-    queryKey: ["/api/conversations", selectedConversationId, "messages"],
-    enabled: !!selectedConversationId,
+    queryKey: ["/api/messages", selectedConversation?.id],
+    enabled: !!selectedConversation?.id,
     retry: false,
   });
-
-  const { data: conversations } = useQuery({
-    queryKey: ["/api/conversations"],
-    retry: false,
-  });
-
-  const selectedConversation = conversations?.find((c: any) => c.id === selectedConversationId);
 
   const { data: chatbotSettings } = useQuery({
     queryKey: ["/api/chatbot/settings"],
@@ -188,11 +185,21 @@ export default function ChatInterface() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { content: string; direction: string }) => {
-      await apiRequest("POST", `/api/conversations/${selectedConversationId}/messages`, data);
+      return await apiRequest('/api/messages', {
+        method: 'POST',
+        body: {
+          content: data.content,
+          conversationId: selectedConversation?.id,
+          direction: data.direction,
+        },
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
-        queryKey: ["/api/conversations", selectedConversationId, "messages"] 
+        queryKey: ["/api/messages", selectedConversation?.id] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/conversations"] 
       });
       setMessageText("");
       toast({
@@ -230,7 +237,7 @@ export default function ChatInterface() {
         // Send AI response as a message
         sendMessageMutation.mutate({
           content: response.message,
-          direction: 'outgoing',
+          direction: 'incoming',
         });
       }
     },
@@ -255,10 +262,10 @@ export default function ChatInterface() {
   });
 
   const handleSendMessage = async () => {
-    if (!messageText.trim() || !selectedConversationId) return;
+    if (!messageText.trim() || !selectedConversation?.id) return;
 
     const userMessage = messageText;
-    const currentAgent = defaultAgents.find(a => a.id === selectedAgent);
+    const currentAgent = allAgents.find(a => a.id === selectedAgent);
 
     // Send user message first
     sendMessageMutation.mutate({
@@ -272,12 +279,12 @@ export default function ChatInterface() {
         aiResponseMutation.mutate({
           message: userMessage,
           agentId: selectedAgent,
-          conversationId: selectedConversationId,
+          conversationId: selectedConversation.id,
           config: {
             provider: currentAgent.provider,
             model: currentAgent.model,
-            temperature: 0.7,
-            maxTokens: 200,
+            temperature: currentAgent.temperature || 0.7,
+            maxTokens: currentAgent.maxTokens || 200,
           },
           context: {
             personality: currentAgent.personality,
@@ -307,6 +314,37 @@ export default function ChatInterface() {
     );
   }
 
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const formatMessageTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    if (isToday(date)) {
+      return format(date, 'HH:mm');
+    } else if (isYesterday(date)) {
+      return 'Yesterday';
+    } else {
+      return format(date, 'MMM dd');
+    }
+  };
+
+  const getStatusIcon = (status: string, direction: string) => {
+    if (direction !== 'outgoing') return null;
+    
+    switch (status) {
+      case 'read':
+        return <CheckCheck className="w-3 h-3 text-blue-500" />;
+      case 'delivered':
+        return <CheckCheck className="w-3 h-3 text-gray-400" />;
+      case 'sent':
+        return <Check className="w-3 h-3 text-gray-400" />;
+      default:
+        return null;
+    }
+  };
+
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
@@ -316,6 +354,18 @@ export default function ChatInterface() {
     const index = name.charCodeAt(0) % colors.length;
     return colors[index];
   };
+
+  if (!selectedConversation) {
+    return (
+      <Card className="h-full flex items-center justify-center">
+        <div className="text-center text-gray-500">
+          <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
+          <p>Choose a conversation from the list to start messaging</p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <>
@@ -487,6 +537,7 @@ export default function ChatInterface() {
             <p className="text-sm">Start the conversation by sending a message</p>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </CardContent>
 
       {/* Message Input */}

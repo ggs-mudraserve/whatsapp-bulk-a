@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useConversation } from "@/contexts/conversation-context";
 
 export default function ConversationList() {
-  const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const { selectedConversation, setSelectedConversation } = useConversation();
 
   const { data: conversations, isLoading } = useQuery({
     queryKey: ["/api/conversations"],
@@ -70,9 +71,9 @@ export default function ConversationList() {
                 key={conversation.id}
                 className={cn(
                   "p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors",
-                  selectedConversation === conversation.id && "bg-blue-50"
+                  selectedConversation?.id === conversation.id && "bg-blue-50"
                 )}
-                onClick={() => setSelectedConversation(conversation.id)}
+                onClick={() => setSelectedConversation(conversation)}
               >
                 <div className="flex items-start space-x-3">
                   <div className={cn(

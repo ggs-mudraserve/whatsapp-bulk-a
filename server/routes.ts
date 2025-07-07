@@ -437,6 +437,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get messages for a conversation (alternative endpoint)
+  app.get('/api/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const conversationId = parseInt(req.query.conversationId);
+      if (!conversationId) {
+        return res.status(400).json({ message: "conversationId is required" });
+      }
+      const messages = await storage.getMessages(conversationId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
   app.post('/api/conversations/:id/messages', isAuthenticated, async (req: any, res) => {
     try {
       const conversationId = parseInt(req.params.id);
@@ -445,6 +460,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         conversationId,
       });
       const message = await storage.createMessage(validatedData);
+      res.json(message);
+    } catch (error) {
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: "Failed to create message" });
+    }
+  });
+
+  // Create message (alternative endpoint)
+  app.post('/api/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, conversationId, direction = 'outgoing' } = req.body;
+
+      if (!content || !conversationId) {
+        return res.status(400).json({ message: "Content and conversationId are required" });
+      }
+
+      const messageData = {
+        conversationId: parseInt(conversationId),
+        content,
+        direction,
+        timestamp: new Date().toISOString(),
+        status: 'sent' as const,
+        type: 'text' as const
+      };
+
+      const message = await storage.createMessage(messageData);
+      
+      // Update conversation's last message
+      await storage.updateConversation(parseInt(conversationId), {
+        updatedAt: new Date()
+      });
+      
       res.json(message);
     } catch (error) {
       console.error("Error creating message:", error);
