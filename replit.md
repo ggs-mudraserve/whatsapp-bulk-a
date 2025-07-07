@@ -247,3 +247,5 @@ Changelog:
 - July 07, 2025. Fixed critical campaign executor bug - resolved missing WhatsApp client initialization for bulk messaging campaigns
 - July 07, 2025. Enhanced campaign system with proper session mapping and multi-number support for bulk message execution
 - July 07, 2025. Campaign bulk messaging now ready for testing with improved WhatsApp client integration and error handling
+- July 07, 2025. Simplified campaign interface by removing separate "Bulk Message" button and integrating all advanced features into single "Create Campaign" form
+- July 07, 2025. Enhanced campaign creation with comprehensive bulk messaging, CSV upload, anti-blocking, and multi-number features in unified interface

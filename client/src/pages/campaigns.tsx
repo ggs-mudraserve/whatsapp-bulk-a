@@ -6,7 +6,6 @@ import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import StatsCard from "@/components/dashboard/stats-card";
 import CampaignTable from "@/components/campaigns/campaign-table";
-import CampaignForm from "@/components/campaigns/campaign-form";
 import BulkMessageForm from "@/components/campaigns/bulk-message-form";
 import DailyUploadScheduler from "@/components/campaigns/daily-upload-scheduler";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -62,13 +61,9 @@ export default function Campaigns() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header 
           title="Campaigns" 
-          subtitle="Create and manage your marketing campaigns"
+          subtitle="Create and manage your WhatsApp marketing campaigns with advanced features"
           primaryAction={{
-            label: "Bulk Message",
-            onClick: () => setShowCreateForm(true)
-          }}
-          secondaryAction={{
-            label: "Simple Campaign",
+            label: "Create Campaign",
             onClick: () => setShowCreateForm(true)
           }}
         />
@@ -108,11 +103,11 @@ export default function Campaigns() {
             }} />
           </div>
 
-          {/* Bulk Message Campaign Dialog */}
+          {/* Advanced Campaign Creation Dialog */}
           <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
             <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create Bulk Message Campaign</DialogTitle>
+                <DialogTitle>Create Advanced Marketing Campaign</DialogTitle>
               </DialogHeader>
               <div className="p-4">
                 <BulkMessageForm onSuccess={() => setShowCreateForm(false)} />
