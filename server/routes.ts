@@ -23,6 +23,35 @@ import {
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // AI conversation activation endpoint  
+  app.post('/api/conversations/:id/ai-agent', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const conversationId = parseInt(req.params.id);
+      const { active, agentType } = req.body;
+      
+      console.log(`Setting AI agent for conversation ${conversationId}: active=${active}, agent=${agentType}`);
+      
+      // For now, we'll enable/disable AI globally for the user when they activate it
+      const settings = await storage.upsertChatbotSettings({
+        userId,
+        enabled: active,
+        personality: agentType || 'helpful',
+        aiProvider: 'openai',
+        aiModel: 'gpt-4o',
+        temperature: 0.7,
+        maxTokens: 150,
+        autoReplyEnabled: active,
+        responseDelay: 2
+      });
+      
+      res.json({ success: true, settings });
+    } catch (error) {
+      console.error("Error setting AI agent:", error);
+      res.status(500).json({ message: "Failed to set AI agent" });
+    }
+  });
+
   // AI test response endpoint (placed before auth to bypass authentication)
   app.post('/api/ai/test-response', async (req: any, res) => {
     try {
@@ -1750,8 +1779,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/chatbot/settings', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const settings = await storage.getChatbotSettings(userId);
-      res.json(settings || { enabled: false });
+      let settings = await storage.getChatbotSettings(userId);
+      
+      // If no settings exist, create default enabled settings
+      if (!settings) {
+        settings = await storage.createChatbotSettings({
+          userId,
+          enabled: true,
+          personality: 'helpful',
+          aiProvider: 'openai',
+          aiModel: 'gpt-4o',
+          temperature: 0.7,
+          maxTokens: 150,
+          autoReplyEnabled: true,
+          responseDelay: 2
+        });
+        console.log(`Created default AI chatbot settings for user ${userId}`);
+      }
+      
+      res.json(settings);
     } catch (error) {
       console.error("Error fetching chatbot settings:", error);
       res.status(500).json({ message: "Failed to fetch chatbot settings" });

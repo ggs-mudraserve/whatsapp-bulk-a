@@ -192,23 +192,69 @@ export default function CleanInbox() {
     toggleBlockMutation.mutate({ contactId, action });
   };
 
-  const handleAiAgentToggle = () => {
+  const handleAiAgentToggle = async () => {
     if (!aiAgentActive) {
       setShowAiAgentDialog(true);
     } else {
-      setAiAgentActive(false);
-      setSelectedAiAgent('');
+      try {
+        // Deactivate AI agent
+        const response = await fetch(`/api/conversations/${selectedConversationId}/ai-agent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ 
+            active: false, 
+            agentType: null 
+          }),
+        });
+        
+        if (!response.ok) throw new Error('Failed to deactivate AI agent');
+        
+        setAiAgentActive(false);
+        setSelectedAiAgent('');
+        toast({
+          title: 'AI Agent deactivated',
+          description: 'Auto-replies are now disabled',
+        });
+      } catch (error) {
+        toast({
+          title: 'Failed to deactivate AI agent',
+          description: 'Please try again',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
-  const handleSelectAiAgent = (agentId: string) => {
-    setSelectedAiAgent(agentId);
-    setAiAgentActive(true);
-    setShowAiAgentDialog(false);
-    toast({
-      title: 'AI Agent activated',
-      description: `${aiAgents.find(a => a.id === agentId)?.name} is now handling this conversation`,
-    });
+  const handleSelectAiAgent = async (agentId: string) => {
+    try {
+      // Call backend to activate AI agent for this conversation
+      const response = await fetch(`/api/conversations/${selectedConversationId}/ai-agent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          active: true, 
+          agentType: agentId 
+        }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to activate AI agent');
+      
+      setSelectedAiAgent(agentId);
+      setAiAgentActive(true);
+      setShowAiAgentDialog(false);
+      toast({
+        title: 'AI Agent activated',
+        description: `${aiAgents.find(a => a.id === agentId)?.name} is now handling this conversation`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to activate AI agent',
+        description: 'Please try again',
+        variant: 'destructive',
+      });
+    }
   };
 
   const formatTime = (timestamp: string) => {

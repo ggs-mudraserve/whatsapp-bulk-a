@@ -512,6 +512,65 @@ class PersistentWhatsAppService {
         });
         
         console.log(`✓ Saved incoming message from ${fromNumber} to database`);
+
+        // Check if AI agent is active for this conversation and auto-reply
+        try {
+          // Check if user has AI agents enabled
+          const aiStorageKey = `ai_agent_${session.userId}_${conversation.id}`;
+          
+          // For now, we'll check if AI chatbot is generally enabled for the user
+          const chatbotSettings = await storage.getChatbotSettings(session.userId);
+          
+          if (chatbotSettings && chatbotSettings.enabled) {
+            console.log(`🤖 AI agent is enabled for user ${session.userId}, generating auto-reply...`);
+            
+            // Generate AI response using the AI service
+            const { multiAIService } = await import('./ai-service');
+            
+            const aiConfig = {
+              provider: chatbotSettings.aiProvider || 'openai',
+              model: chatbotSettings.aiModel || 'gpt-4o',
+              temperature: chatbotSettings.temperature || 0.7,
+              maxTokens: chatbotSettings.maxTokens || 150
+            };
+
+            const aiResponse = await multiAIService.generateResponse(
+              messageBody,
+              conversation.contactName || fromNumber,
+              aiConfig
+            );
+
+            if (aiResponse.shouldReply && aiResponse.message) {
+              console.log(`🤖 Generated AI response: "${aiResponse.message}"`);
+              
+              // Send the AI response back via WhatsApp
+              await this.sendMessage(session.id, fromNumber, aiResponse.message);
+              
+              // Save AI response to database
+              await storage.createMessage({
+                conversationId: conversation.id,
+                content: aiResponse.message,
+                direction: 'outgoing',
+                status: 'sent',
+                messageType: 'text',
+                timestamp: new Date()
+              });
+              
+              // Update conversation with AI response
+              await storage.updateConversation(conversation.id, {
+                lastMessage: aiResponse.message,
+                lastMessageAt: new Date()
+              });
+              
+              console.log(`✅ AI auto-reply sent to ${fromNumber}: "${aiResponse.message}"`);
+            } else {
+              console.log(`🤖 AI decided not to reply to: "${messageBody}"`);
+            }
+          }
+        } catch (aiError) {
+          console.error('Error with AI auto-reply:', aiError);
+          // Don't fail the whole message processing if AI fails
+        }
         
       } catch (error) {
         console.error('Error processing received message:', error);

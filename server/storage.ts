@@ -87,6 +87,7 @@ export interface IStorage {
   
   // Chatbot settings
   getChatbotSettings(userId: string): Promise<ChatbotSettings | undefined>;
+  createChatbotSettings(settings: InsertChatbotSettings & { userId: string }): Promise<ChatbotSettings>;
   upsertChatbotSettings(settings: InsertChatbotSettings & { userId: string }): Promise<ChatbotSettings>;
   
   // Dashboard stats
@@ -484,6 +485,14 @@ export class DatabaseStorage implements IStorage {
 
   async getChatbotSettings(userId: string): Promise<ChatbotSettings | undefined> {
     const [settings] = await db.select().from(chatbotSettings).where(eq(chatbotSettings.userId, userId));
+    return settings;
+  }
+
+  async createChatbotSettings(settingsData: InsertChatbotSettings & { userId: string }): Promise<ChatbotSettings> {
+    const [settings] = await db
+      .insert(chatbotSettings)
+      .values(settingsData)
+      .returning();
     return settings;
   }
 
