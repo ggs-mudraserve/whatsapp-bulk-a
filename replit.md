@@ -192,6 +192,11 @@ Changelog:
 - July 07, 2025. Fixed new chat creation functionality - resolved foreign key constraint errors and improved conversation creation
 - July 07, 2025. Enhanced inbox interface - removed + icons, added real-time WhatsApp number selection, improved phone number validation
 - July 07, 2025. Fixed database constraint issues in WhatsApp message processing by removing hardcoded whatsapp_number_id references
+- July 07, 2025. Implemented comprehensive contact blocking functionality with proper message filtering
+- July 07, 2025. Added block/unblock buttons to both contacts table and inbox chat headers with visual status indicators
+- July 07, 2025. Enhanced WhatsApp message processing to ignore incoming messages from blocked contacts
+- July 07, 2025. Added outgoing message validation to prevent sending messages to blocked contacts
+- July 07, 2025. Implemented blocked contact UI feedback - disabled message input with clear visual warning
 - July 07, 2025. Fixed WhatsApp connection persistence issue - sessions now stay alive properly for QR scanning
 - July 07, 2025. Implemented intelligent cleanup logic that prevents premature session termination
 - July 07, 2025. Added real-time connection status polling to track successful QR scans

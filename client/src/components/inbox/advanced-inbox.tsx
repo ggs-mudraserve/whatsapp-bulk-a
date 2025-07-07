@@ -845,37 +845,46 @@ export default function AdvancedInbox() {
 
             {/* Message Input */}
             <div className="p-4 border-t bg-gray-50">
-              <div className="flex items-end space-x-2">
-                <Button variant="ghost" size="icon" className="mb-1">
-                  <Paperclip className="w-4 h-4" />
-                </Button>
-                <div className="flex-1 relative">
-                  <Input
-                    placeholder="Type a message..."
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    disabled={sendMessageMutation.isPending}
-                    className="pr-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                  />
-                  <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 transform -translate-y-1/2">
-                    <Smile className="w-4 h-4" />
-                  </Button>
+              {selectedConversation.status === 'blocked' ? (
+                <div className="flex items-center justify-center p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <Ban className="w-5 h-5 text-red-500 mr-2" />
+                  <span className="text-red-700 font-medium">This contact is blocked. Unblock to send messages.</span>
                 </div>
-                <Button 
-                  onClick={handleSendMessage}
-                  disabled={!messageText.trim() || sendMessageMutation.isPending}
-                  size="icon"
-                  className="bg-blue-500 hover:bg-blue-600"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-              {sendMessageMutation.isPending && (
-                <div className="flex items-center space-x-2 mt-2 text-sm text-gray-500">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-500"></div>
-                  <span>Sending...</span>
-                </div>
+              ) : (
+                <>
+                  <div className="flex items-end space-x-2">
+                    <Button variant="ghost" size="icon" className="mb-1">
+                      <Paperclip className="w-4 h-4" />
+                    </Button>
+                    <div className="flex-1 relative">
+                      <Input
+                        placeholder="Type a message..."
+                        value={messageText}
+                        onChange={(e) => setMessageText(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        disabled={sendMessageMutation.isPending}
+                        className="pr-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                      <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 transform -translate-y-1/2">
+                        <Smile className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <Button 
+                      onClick={handleSendMessage}
+                      disabled={!messageText.trim() || sendMessageMutation.isPending}
+                      size="icon"
+                      className="bg-blue-500 hover:bg-blue-600"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {sendMessageMutation.isPending && (
+                    <div className="flex items-center space-x-2 mt-2 text-sm text-gray-500">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-500"></div>
+                      <span>Sending...</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </>

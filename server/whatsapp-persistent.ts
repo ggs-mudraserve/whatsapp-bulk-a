@@ -464,6 +464,12 @@ class PersistentWhatsAppService {
           console.log(`Created new contact for ${fromNumber}`);
         }
         
+        // Check if contact is blocked - do not process messages from blocked contacts
+        if (contact.status === 'blocked') {
+          console.log(`🚫 Ignoring message from blocked contact ${fromNumber}: ${messageBody}`);
+          return; // Exit early, don't save message
+        }
+        
         // Find the WhatsApp number record for this session
         let whatsappNumbers = await storage.getWhatsappNumbers(session.userId);
         let whatsappNumber = whatsappNumbers.find(wn => wn.phoneNumber === session.phoneNumber);
@@ -618,6 +624,25 @@ class PersistentWhatsAppService {
 
     if (session.status !== 'connected') {
       throw new Error(`Session ${sessionId} is not connected (status: ${session.status})`);
+    }
+
+    // Check if recipient is blocked
+    try {
+      const { storage } = await import('./storage');
+      const contacts = await storage.getContacts(session.userId);
+      const phoneNumber = to.replace(/[@c.us]/g, '');
+      const contact = contacts.find(c => c.phoneNumber.replace('+', '') === phoneNumber);
+      
+      if (contact && contact.status === 'blocked') {
+        console.log(`🚫 Cannot send message to blocked contact ${to}`);
+        throw new Error(`Cannot send message to blocked contact`);
+      }
+    } catch (error) {
+      if (error.message.includes('blocked contact')) {
+        throw error; // Re-throw blocking error
+      }
+      // If it's just a storage error, continue with sending (contact might not exist yet)
+      console.log('Warning: Could not check contact status, proceeding with send');
     }
 
     try {
