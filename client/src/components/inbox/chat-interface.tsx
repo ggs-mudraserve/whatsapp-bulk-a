@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -27,6 +29,9 @@ interface AIAgent {
   provider: string;
   model: string;
   color: string;
+  apiKey?: string;
+  temperature?: number;
+  maxTokens?: number;
 }
 
 const defaultAgents: AIAgent[] = [
@@ -82,7 +87,80 @@ export default function ChatInterface() {
   const [messageText, setMessageText] = useState("");
   const [aiEnabled, setAiEnabled] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string>(defaultAgents[0].id);
+  const [allAgents, setAllAgents] = useState<AIAgent[]>(defaultAgents);
+  const [showTestPopup, setShowTestPopup] = useState(false);
+  const [testMessage, setTestMessage] = useState("");
+  const [testResponse, setTestResponse] = useState("");
+  const [isTestingAgent, setIsTestingAgent] = useState(false);
   const { toast } = useToast();
+
+  // Load custom agents from localStorage on mount
+  useEffect(() => {
+    const loadAgents = () => {
+      const customAgents = localStorage.getItem('customAgents');
+      if (customAgents) {
+        try {
+          const parsed = JSON.parse(customAgents);
+          setAllAgents([...defaultAgents, ...parsed]);
+        } catch (error) {
+          console.error('Error loading custom agents:', error);
+        }
+      }
+    };
+
+    loadAgents();
+    
+    // Listen for storage changes to sync in real-time
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'customAgents') {
+        loadAgents();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Test response mutation for real AI testing
+  const testResponseMutation = useMutation({
+    mutationFn: async ({ message, agent }: { message: string; agent: AIAgent }) => {
+      return await apiRequest(`/api/ai/test-response`, {
+        method: 'POST',
+        body: JSON.stringify({
+          message,
+          provider: agent.provider,
+          model: agent.model,
+          apiKey: agent.apiKey || '',
+          temperature: agent.temperature || 0.7,
+          maxTokens: agent.maxTokens || 500,
+          customInstructions: agent.personality
+        })
+      });
+    },
+    onSuccess: (data) => {
+      setTestResponse(data.message);
+      setIsTestingAgent(false);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized", 
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Test Failed",
+        description: "Failed to get AI response. Check your API key configuration.",
+        variant: "destructive",
+      });
+      setIsTestingAgent(false);
+    },
+  });
 
   const { data: messages, isLoading: messagesLoading } = useQuery({
     queryKey: ["/api/conversations", selectedConversationId, "messages"],
@@ -234,7 +312,8 @@ export default function ChatInterface() {
   };
 
   return (
-    <Card className="h-full flex flex-col">
+    <>
+      <Card className="h-full flex flex-col">
       {/* Chat Header */}
       <CardHeader className="border-b border-gray-200">
         <div className="flex items-center justify-between">
@@ -274,7 +353,7 @@ export default function ChatInterface() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {defaultAgents.map((agent) => (
+                  {allAgents.map((agent) => (
                     <SelectItem key={agent.id} value={agent.id}>
                       <div className="flex items-center space-x-2">
                         <div className={`w-3 h-3 rounded-full ${agent.color}`} />
@@ -285,6 +364,16 @@ export default function ChatInterface() {
                 </SelectContent>
               </Select>
             )}
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTestPopup(true)}
+              className="text-xs px-2"
+            >
+              <MessageCircle className="w-3 h-3 mr-1" />
+              Test Response
+            </Button>
             
             <Button
               variant="outline"
@@ -410,5 +499,94 @@ export default function ChatInterface() {
         </div>
       </div>
     </Card>
+    
+    {/* Test Response Dialog */}
+    <Dialog open={showTestPopup} onOpenChange={setShowTestPopup}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Test AI Agent Response</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {/* Agent Selection */}
+          <div>
+            <Label className="text-sm font-medium">Select Agent to Test</Label>
+            <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+              <SelectTrigger className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {allAgents.map((agent) => (
+                  <SelectItem key={agent.id} value={agent.id}>
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-3 h-3 rounded-full ${agent.color}`} />
+                      <span className="text-sm">{agent.name}</span>
+                      <span className="text-xs text-gray-500 ml-2">({agent.provider} • {agent.model})</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Test Message Input */}
+          <div>
+            <Label className="text-sm font-medium">Test Message</Label>
+            <Textarea
+              value={testMessage}
+              onChange={(e) => setTestMessage(e.target.value)}
+              placeholder="Type a message to test the AI agent's response..."
+              className="mt-1 min-h-[100px]"
+            />
+          </div>
+          
+          {/* Test Button */}
+          <Button
+            onClick={() => {
+              const agent = allAgents.find(a => a.id === selectedAgent);
+              if (agent && testMessage.trim()) {
+                setIsTestingAgent(true);
+                setTestResponse("");
+                testResponseMutation.mutate({ message: testMessage, agent });
+              } else {
+                toast({
+                  title: "Invalid Input",
+                  description: "Please select an agent and enter a test message.",
+                  variant: "destructive",
+                });
+              }
+            }}
+            disabled={isTestingAgent || !testMessage.trim()}
+            className="w-full"
+          >
+            {isTestingAgent ? (
+              <>
+                <Bot className="w-4 h-4 mr-2 animate-spin" />
+                Getting Response...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 mr-2" />
+                Test Agent Response
+              </>
+            )}
+          </Button>
+          
+          {/* AI Response */}
+          {testResponse && (
+            <div className="mt-4">
+              <Label className="text-sm font-medium">AI Response</Label>
+              <div className="mt-1 p-3 bg-gray-50 border rounded-lg">
+                <p className="text-sm">{testResponse}</p>
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                💡 This conversation is automatically synced to your inbox for easy reference.
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }
