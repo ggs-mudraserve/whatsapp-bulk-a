@@ -2200,9 +2200,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             const OpenAI = require('openai');
             const openai = new OpenAI({ apiKey });
-            await openai.models.list();
+            // Make a simple chat completion request to test the key
+            await openai.chat.completions.create({
+              model: 'gpt-3.5-turbo',
+              messages: [{ role: 'user', content: 'test' }],
+              max_tokens: 5
+            });
             isValid = true;
           } catch (error) {
+            console.error('OpenAI API key test failed:', error.message);
             isValid = false;
           }
           break;
@@ -2212,12 +2218,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const Anthropic = require('@anthropic-ai/sdk');
             const anthropic = new Anthropic({ apiKey });
             await anthropic.messages.create({
-              model: 'claude-sonnet-4-20250514',
+              model: 'claude-3-5-sonnet-20241022',
               max_tokens: 10,
               messages: [{ role: 'user', content: 'test' }]
             });
             isValid = true;
           } catch (error) {
+            console.error('Anthropic API key test failed:', error.message);
             isValid = false;
           }
           break;
@@ -2227,18 +2234,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const { GoogleGenAI } = require('@google/genai');
             const genai = new GoogleGenAI({ apiKey });
             await genai.models.generateContent({
-              model: 'gemini-2.5-flash',
+              model: 'gemini-1.5-flash',
               contents: 'test'
             });
             isValid = true;
           } catch (error) {
+            console.error('Gemini API key test failed:', error.message);
             isValid = false;
           }
           break;
           
-        default:
-          // For other providers, assume valid for now
+        case 'xai':
+          // For xAI, we'll implement proper testing later
           isValid = true;
+          break;
+          
+        case 'perplexity':
+          // For Perplexity, we'll implement proper testing later
+          isValid = true;
+          break;
+          
+        default:
+          // Unknown provider
+          isValid = false;
       }
       
       res.json({ valid: isValid, provider });
