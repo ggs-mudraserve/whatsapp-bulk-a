@@ -73,11 +73,14 @@ export default function SimpleQRSetup() {
           } else if (data.type === 'disconnected') {
             setSession(prev => prev ? {
               ...prev,
-              status: 'disconnected'
+              status: 'disconnected',
+              qrCode: undefined
             } : null);
+            
+            const isRetryable = data.canRetry;
             toast({
-              title: "Disconnected",
-              description: "WhatsApp connection lost",
+              title: "Connection Lost",
+              description: data.message + (isRetryable ? " Click Connect to try again." : ""),
               variant: "destructive"
             });
           }

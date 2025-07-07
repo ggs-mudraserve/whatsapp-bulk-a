@@ -685,12 +685,17 @@ export default function AIAgents() {
                     </div>
                     
                     <div className="border-t pt-4">
-                      <h4 className="font-medium mb-3">Quick Test Buttons</h4>
+                      <h4 className="font-medium mb-3">Response Testing</h4>
+                      <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-sm text-blue-700">
+                          💡 Test how your AI agents respond to different messages. All test conversations automatically sync with your inbox for easy review.
+                        </p>
+                      </div>
                       <div className="grid gap-2">
                         {allAgents.map((agent) => {
                           const IconComponent = agent.icon || Bot;
                           return (
-                            <div key={agent.id} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div key={agent.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
                               <div className="flex items-center gap-3">
                                 <div className={`p-2 rounded-lg ${agent.color}`}>
                                   <IconComponent className="w-4 h-4 text-white" />
@@ -698,15 +703,17 @@ export default function AIAgents() {
                                 <div>
                                   <div className="font-medium">{agent.name}</div>
                                   <div className="text-sm text-gray-500">{agent.role}</div>
+                                  <div className="text-xs text-gray-400">{agent.aiProvider} • {agent.aiModel}</div>
                                 </div>
                               </div>
                               <Button 
                                 variant="outline" 
                                 size="sm"
                                 onClick={() => setTestingAgent(agent)}
+                                className="hover:bg-blue-50 hover:border-blue-300"
                               >
                                 <MessageSquare className="w-4 h-4 mr-2" />
-                                Chat Test
+                                Test Responses
                               </Button>
                             </div>
                           );

@@ -16,7 +16,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Paperclip, Send, Tag, MoreVertical, MessageCircle, Bot, Sparkles, User } from "lucide-react";
+import { Paperclip, Send, Tag, MoreVertical, MessageCircle, Bot, Sparkles, User, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AIAgent {
@@ -285,6 +285,21 @@ export default function ChatInterface() {
                 </SelectContent>
               </Select>
             )}
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                toast({
+                  title: "AI Agent Sync",
+                  description: "This conversation is automatically synced with your AI Agents. Test responses from the AI Agents page appear here."
+                });
+              }}
+              className="text-xs px-2"
+            >
+              <RefreshCw className="w-3 h-3 mr-1" />
+              Sync
+            </Button>
             
             <Button variant="ghost" size="icon">
               <Tag className="w-4 h-4" />

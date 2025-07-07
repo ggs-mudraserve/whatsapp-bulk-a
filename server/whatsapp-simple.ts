@@ -206,29 +206,59 @@ class SimpleWhatsAppService {
           const error = lastDisconnect?.error as Boom;
           const statusCode = error?.output?.statusCode;
           
-          console.log('Connection closed:', statusCode);
+          console.log('Connection closed:', statusCode, 'Session was:', session.status);
           
           session.status = 'disconnected';
           this.sessions.set(sessionId, session);
 
           let message = 'Connection closed';
+          let shouldReconnect = false;
           
           if (statusCode === DisconnectReason.loggedOut) {
             message = 'WhatsApp logged out. Please scan QR code again.';
-          } else if (statusCode === 401 || statusCode === 515) {
-            message = 'WhatsApp blocked this connection. Please wait 10 minutes and try again.';
+          } else if (statusCode === 401) {
+            message = 'Authentication failed. Please wait 10 minutes and try again.';
             this.rateLimitMap.set(userId, Date.now());
+          } else if (statusCode === 515) {
+            // 515 can happen during initial auth or due to rate limiting
+            // Check the session status before disconnect
+            const sessionBeforeDisconnect = this.sessions.get(sessionId);
+            if (sessionBeforeDisconnect && (sessionBeforeDisconnect.status === 'qr_ready' || sessionBeforeDisconnect.status === 'connecting')) {
+              message = 'Connection interrupted during authentication. Please try scanning again.';
+              shouldReconnect = true;
+            } else {
+              message = 'WhatsApp blocked this connection. Please wait 10 minutes and try again.';
+              this.rateLimitMap.set(userId, Date.now());
+            }
           } else if (statusCode === DisconnectReason.badSession) {
             message = 'Invalid session. Please scan QR code again.';
+          } else if (statusCode === DisconnectReason.timedOut) {
+            message = 'Connection timed out. Please try again.';
+            shouldReconnect = true;
           } else {
             message = 'Connection lost. Please try again.';
+            shouldReconnect = true;
           }
 
           ws.send(JSON.stringify({
             type: 'disconnected',
             sessionId,
-            message
+            message,
+            canRetry: shouldReconnect
           }));
+          
+          // Auto cleanup auth files for fresh start if needed
+          if (statusCode === 515 || statusCode === DisconnectReason.badSession) {
+            const authDir = `./auth_info_${sessionId}`;
+            try {
+              const fs = await import('fs');
+              if (fs.existsSync(authDir)) {
+                fs.rmSync(authDir, { recursive: true, force: true });
+              }
+            } catch (e) {
+              console.log('Auth cleanup failed:', e);
+            }
+          }
         }
       });
 
