@@ -83,21 +83,12 @@ export class MultiProviderAIService {
       let systemPrompt = '';
       
       if (context?.customInstructions) {
-        // Use exclusively the user's custom instructions
+        // Use exclusively the user's custom instructions - NO modifications
         systemPrompt = context.customInstructions;
         
-        // Add web application data context if available
-        if (context.webAppData) {
-          const dataContext = `
-
-Current Application Data:
-- Total Contacts: ${context.webAppData.contacts?.length || 0}
-- Active Conversations: ${context.webAppData.conversations?.length || 0}  
-- Connected WhatsApp Numbers: ${context.webAppData.whatsappNumbers?.length || 0}
-- Customer Name: ${context.customerName || 'Unknown'}
-
-Use this real-time data from the application to provide accurate, context-aware responses.`;
-          systemPrompt += dataContext;
+        // Add customer context
+        if (context.customerName) {
+          systemPrompt += `\n\nYou are currently talking to: ${context.customerName}`;
         }
       } else {
         // Fallback only if no custom instructions provided

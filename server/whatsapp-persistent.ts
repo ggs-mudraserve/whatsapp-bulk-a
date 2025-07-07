@@ -565,7 +565,7 @@ class PersistentWhatsAppService {
             });
             
             // Get conversation history from database for context
-            const conversationHistory = await storage.getMessagesByConversation(conversation.id);
+            const conversationHistory = await storage.getMessages(conversation.id);
             const recentMessages = conversationHistory.slice(-6).map(msg => 
               `${msg.isFromUser ? 'Customer' : 'Assistant'}: ${msg.content}`
             );
@@ -577,12 +577,7 @@ class PersistentWhatsAppService {
                 customerName: conversation.contactName || fromNumber,
                 businessName: chatbotSettings.businessName,
                 customInstructions: chatbotSettings.customInstructions,
-                previousMessages: recentMessages,
-                webAppData: {
-                  contacts: await storage.getContactsByUserId(chatbotSettings.userId),
-                  conversations: await storage.getConversationsByUserId(chatbotSettings.userId),
-                  whatsappNumbers: await storage.getWhatsAppNumbersByUserId(chatbotSettings.userId)
-                }
+                previousMessages: recentMessages
               }
             );
 
