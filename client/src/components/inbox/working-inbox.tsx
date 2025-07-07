@@ -110,14 +110,25 @@ export default function WorkingInbox() {
     mutationFn: async (messageData: { content: string }) => {
       if (!selectedConversationId) throw new Error('No conversation selected');
       
-      return await apiRequest(`/api/conversations/${selectedConversationId}/messages`, {
+      const response = await fetch(`/api/conversations/${selectedConversationId}/messages`, {
         method: 'POST',
-        body: {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           content: messageData.content,
-          type: 'outgoing',
-          status: 'sent'
-        }
+          direction: 'outgoing',
+          status: 'sent',
+          messageType: 'text'
+        })
       });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to send message');
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       setMessageText('');
