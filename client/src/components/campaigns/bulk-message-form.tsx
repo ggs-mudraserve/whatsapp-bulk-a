@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Send, MessageSquare, Users, Clock, Settings } from "lucide-react";
+import { Send, MessageSquare, Users, Clock, Settings, Upload, FileText } from "lucide-react";
 import type { ContactGroup, Contact, WhatsappNumber, Template } from "@shared/schema";
 
 interface BulkMessageFormProps {
@@ -38,6 +38,10 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
   const [randomizeDelay, setRandomizeDelay] = useState(true);
   const [delayMin, setDelayMin] = useState(3);
   const [delayMax, setDelayMax] = useState(8);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvContacts, setCsvContacts] = useState<{name: string, phoneNumber: string}[]>([]);
+  const [showCsvUpload, setShowCsvUpload] = useState(false);
+  const [createGroupFromCampaign, setCreateGroupFromCampaign] = useState(true);
 
   // Fetch data
   const { data: contactGroups = [] } = useQuery({
@@ -81,7 +85,7 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
       index === self.findIndex(c => c.id === contact.id) && contact.status !== 'blocked'
     );
 
-    return uniqueContacts.length;
+    return uniqueContacts.length + csvContacts.length;
   };
 
   // Handle template selection
@@ -93,13 +97,87 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
     }
   };
 
+  // CSV upload handling
+  const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setCsvFile(file);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      // Skip header if present
+      const startIndex = lines[0]?.toLowerCase().includes('name') || lines[0]?.toLowerCase().includes('phone') ? 1 : 0;
+      
+      const contacts = lines.slice(startIndex).map(line => {
+        const [name, phoneNumber] = line.split(',').map(item => item.trim().replace(/"/g, ''));
+        return { name: name || 'Unknown', phoneNumber: phoneNumber || '' };
+      }).filter(contact => contact.phoneNumber);
+
+      setCsvContacts(contacts);
+      toast({
+        title: "CSV uploaded",
+        description: `Found ${contacts.length} contacts in the CSV file.`,
+      });
+    };
+    
+    reader.readAsText(file);
+  };
+
   // Create campaign mutation
   const createCampaignMutation = useMutation({
     mutationFn: async (campaignData: any) => {
+      let groupId = null;
+      
+      // If we have CSV contacts and user wants to create a group
+      if (csvContacts.length > 0 && createGroupFromCampaign && campaignName.trim()) {
+        try {
+          // Create a new contact group with campaign name
+          const groupResponse = await apiRequest("POST", "/api/contact-groups", {
+            name: campaignName.trim(),
+            color: "#3B82F6", // Default blue color
+            description: `Contacts for campaign: ${campaignName}`
+          });
+          
+          groupId = groupResponse.id;
+          
+          // Bulk create contacts and assign them to the new group
+          const contactsToCreate = csvContacts.map(contact => ({
+            name: contact.name,
+            phoneNumber: contact.phoneNumber,
+            groupId: groupId,
+            status: 'active',
+            tags: [`campaign-${campaignName.toLowerCase().replace(/\s+/g, '-')}`]
+          }));
+          
+          await apiRequest("POST", "/api/contacts/bulk", { contacts: contactsToCreate });
+          
+          // Add the new group to selected groups
+          campaignData.targetGroups = [...(campaignData.targetGroups || []), groupId];
+          
+          toast({
+            title: "Contacts uploaded",
+            description: `Created group "${campaignName}" with ${csvContacts.length} contacts.`,
+          });
+        } catch (error) {
+          console.error("Error creating group and contacts:", error);
+          toast({
+            title: "Warning",
+            description: "Campaign created but failed to upload CSV contacts.",
+            variant: "destructive",
+          });
+        }
+      }
+      
       return await apiRequest("POST", "/api/campaigns", campaignData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contact-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
       toast({
         title: "Campaign created",
         description: `Bulk message campaign "${campaignName}" has been created successfully.`,
@@ -130,6 +208,10 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
     setRandomizeDelay(true);
     setDelayMin(3);
     setDelayMax(8);
+    setCsvFile(null);
+    setCsvContacts([]);
+    setShowCsvUpload(false);
+    setCreateGroupFromCampaign(true);
     setShowDialog(false);
   };
 
@@ -153,10 +235,10 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
       return;
     }
 
-    if (selectedGroups.length === 0 && selectedContacts.length === 0) {
+    if (selectedGroups.length === 0 && selectedContacts.length === 0 && csvContacts.length === 0) {
       toast({
         title: "Error",
-        description: "Please select at least one contact group or individual contact.",
+        description: "Please select at least one contact group, individual contact, or upload a CSV file.",
         variant: "destructive",
       });
       return;
@@ -374,9 +456,89 @@ export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
                 </div>
               </div>
 
+              <Separator />
+
+              {/* CSV Upload Section */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Upload CSV Contacts</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCsvUpload(!showCsvUpload)}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {showCsvUpload ? 'Hide Upload' : 'Upload CSV'}
+                  </Button>
+                </div>
+
+                {showCsvUpload && (
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <Label htmlFor="csvFile" className="text-xs">
+                        CSV File (Name, Phone Number)
+                      </Label>
+                      <Input
+                        id="csvFile"
+                        type="file"
+                        accept=".csv"
+                        onChange={handleCsvUpload}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Format: First column should be name, second column should be phone number
+                      </p>
+                    </div>
+
+                    {csvContacts.length > 0 && (
+                      <div>
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Checkbox
+                            id="createGroup"
+                            checked={createGroupFromCampaign}
+                            onCheckedChange={(checked) => setCreateGroupFromCampaign(checked as boolean)}
+                          />
+                          <Label htmlFor="createGroup" className="text-sm">
+                            Create contact group with campaign name
+                          </Label>
+                        </div>
+                        
+                        <div className="bg-green-50 p-3 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-green-600" />
+                            <p className="text-sm text-green-800">
+                              <strong>{csvContacts.length} contacts</strong> ready to import
+                              {createGroupFromCampaign && campaignName && (
+                                <span> into group "{campaignName}"</span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="mt-2 max-h-32 overflow-y-auto">
+                            <div className="text-xs text-green-700 space-y-1">
+                              {csvContacts.slice(0, 5).map((contact, index) => (
+                                <div key={index}>
+                                  {contact.name} - {contact.phoneNumber}
+                                </div>
+                              ))}
+                              {csvContacts.length > 5 && (
+                                <div>... and {csvContacts.length - 5} more</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="bg-blue-50 p-3 rounded-lg">
                 <p className="text-sm text-blue-800">
                   <strong>Target Contacts:</strong> {getTargetContactsCount()} contacts will receive this message
+                  {csvContacts.length > 0 && (
+                    <span> (including {csvContacts.length} from CSV)</span>
+                  )}
                 </p>
               </div>
             </CardContent>

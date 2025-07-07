@@ -213,4 +213,5 @@ Changelog:
 - July 07, 2025. Removed broken conversation context and chat interface components
 - July 07, 2025. Implemented real-time sync with 2-second conversation updates and 1-second message updates
 - July 07, 2025. Added modern WhatsApp-style UI with avatars, status indicators, and message status icons
-- July 07, 2025. Enhanced message sending with immediate UI feedback and proper error handling
+- July 07, 2025. Enhanced message sending with immediate UI feedback and proper error handling- July 07, 2025. Added CSV upload functionality to campaign creation with automatic contact group creation using campaign name
+- July 07, 2025. Implemented bulk contact import with format validation and automatic group assignment for marketing campaigns

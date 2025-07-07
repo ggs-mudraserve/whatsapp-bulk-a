@@ -286,6 +286,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk create contacts
+  app.post('/api/contacts/bulk', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { contacts } = req.body;
+      
+      if (!contacts || !Array.isArray(contacts)) {
+        return res.status(400).json({ message: "Contacts array is required" });
+      }
+
+      // Add userId to each contact
+      const contactsWithUserId = contacts.map(contact => ({
+        ...contact,
+        userId
+      }));
+
+      const createdContacts = await storage.bulkCreateContacts(contactsWithUserId);
+      res.status(201).json(createdContacts);
+    } catch (error) {
+      console.error("Error bulk creating contacts:", error);
+      res.status(500).json({ message: "Failed to create contacts" });
+    }
+  });
+
   app.post('/api/contacts/bulk-delete', isAuthenticated, async (req: any, res) => {
     try {
       const { ids } = req.body;
