@@ -215,6 +215,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/contacts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const contact = await storage.updateContact(id, req.body);
+      res.json(contact);
+    } catch (error) {
+      console.error("Error updating contact:", error);
+      res.status(500).json({ message: "Failed to update contact" });
+    }
+  });
+
   app.delete('/api/contacts/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Edit, MessageSquare, Trash2, Users } from "lucide-react";
+import { Search, Edit, MessageSquare, Trash2, Users, Ban, Shield } from "lucide-react";
 
 interface ContactTableProps {
   contacts: any[];
@@ -52,6 +52,37 @@ export default function ContactTable({ contacts, loading }: ContactTableProps) {
     },
   });
 
+  const blockContactMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      await apiRequest("PATCH", `/api/contacts/${id}`, { status });
+    },
+    onSuccess: (_, { status }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      toast({
+        title: status === "blocked" ? "Contact blocked" : "Contact unblocked",
+        description: `Contact has been ${status === "blocked" ? "blocked" : "unblocked"} successfully.`,
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update contact status.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: number[]) => {
       await apiRequest("POST", "/api/contacts/bulk-delete", { ids });
@@ -87,6 +118,15 @@ export default function ContactTable({ contacts, loading }: ContactTableProps) {
   const handleDelete = (id: number) => {
     if (confirm("Are you sure you want to delete this contact?")) {
       deleteContactMutation.mutate(id);
+    }
+  };
+
+  const handleBlock = (id: number, currentStatus: string) => {
+    const newStatus = currentStatus === "blocked" ? "active" : "blocked";
+    const action = newStatus === "blocked" ? "block" : "unblock";
+    
+    if (confirm(`Are you sure you want to ${action} this contact?`)) {
+      blockContactMutation.mutate({ id, status: newStatus });
     }
   };
 
@@ -311,8 +351,21 @@ export default function ContactTable({ contacts, loading }: ContactTableProps) {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => handleBlock(contact.id, contact.status)}
+                          className={contact.status === "blocked" 
+                            ? "text-green-500 hover:text-green-600" 
+                            : "text-orange-500 hover:text-orange-600"
+                          }
+                          disabled={blockContactMutation.isPending}
+                        >
+                          {contact.status === "blocked" ? <Shield className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleDelete(contact.id)}
                           className="text-red-500 hover:text-red-600"
+                          disabled={deleteContactMutation.isPending}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

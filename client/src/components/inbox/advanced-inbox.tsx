@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile, Bot, Trash2, MessageSquarePlus } from 'lucide-react';
+import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile, Bot, Trash2, MessageSquarePlus, Ban, Shield } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -154,24 +154,18 @@ export default function AdvancedInbox() {
       const cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
       
       // First create/get contact with the provided name
-      const contactResponse = await apiRequest('/api/contacts', {
-        method: 'POST',
-        body: {
-          name: contactName || cleanPhone,
-          phoneNumber: cleanPhone,
-          tags: [],
-          status: 'active'
-        }
+      const contactResponse = await apiRequest('POST', '/api/contacts', {
+        name: contactName || cleanPhone,
+        phoneNumber: cleanPhone,
+        tags: [],
+        status: 'active'
       });
       
       // Then create conversation with required fields
-      return await apiRequest('/api/conversations', {
-        method: 'POST',
-        body: {
-          contactId: contactResponse.id,
-          contactName: contactName || cleanPhone,
-          contactPhone: cleanPhone
-        }
+      return await apiRequest('POST', '/api/conversations', {
+        contactId: contactResponse.id,
+        contactName: contactName || cleanPhone,
+        contactPhone: cleanPhone
       });
     },
     onSuccess: (newConversation) => {
@@ -191,6 +185,28 @@ export default function AdvancedInbox() {
       toast({
         title: 'Failed to create chat',
         description: error?.message || 'Could not create new conversation. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Block/unblock contact mutation
+  const blockContactMutation = useMutation({
+    mutationFn: async ({ contactId, status }: { contactId: number; status: string }) => {
+      await apiRequest('PATCH', `/api/contacts/${contactId}`, { status });
+    },
+    onSuccess: (_, { status }) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/conversations'] });
+      toast({
+        title: status === "blocked" ? "Contact blocked" : "Contact unblocked",
+        description: `Contact has been ${status === "blocked" ? "blocked" : "unblocked"} successfully.`,
+      });
+    },
+    onError: (error) => {
+      console.error('Block contact error:', error);
+      toast({
+        title: 'Failed to update contact',
+        description: error?.message || 'Could not update contact status. Please try again.',
         variant: 'destructive',
       });
     },
@@ -624,6 +640,36 @@ export default function AdvancedInbox() {
                   >
                     <Bot className="w-4 h-4 mr-2" />
                     AI Agent
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const currentStatus = selectedConversation.status || 'active';
+                      const newStatus = currentStatus === 'blocked' ? 'active' : 'blocked';
+                      const action = newStatus === 'blocked' ? 'block' : 'unblock';
+                      
+                      if (confirm(`Are you sure you want to ${action} this contact?`)) {
+                        blockContactMutation.mutate({ contactId: selectedConversation.contactId, status: newStatus });
+                      }
+                    }}
+                    className={selectedConversation.status === 'blocked' 
+                      ? "text-green-600 hover:text-green-700 hover:bg-green-50" 
+                      : "text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                    }
+                    disabled={blockContactMutation.isPending}
+                  >
+                    {selectedConversation.status === 'blocked' ? (
+                      <>
+                        <Shield className="w-4 h-4 mr-2" />
+                        Unblock
+                      </>
+                    ) : (
+                      <>
+                        <Ban className="w-4 h-4 mr-2" />
+                        Block
+                      </>
+                    )}
                   </Button>
                   <Button
                     variant="outline"
