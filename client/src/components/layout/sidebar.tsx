@@ -26,7 +26,7 @@ const navigation = [
   { name: 'Campaigns', href: '/campaigns', icon: Megaphone },
   { name: 'Contacts', href: '/contacts', icon: Users },
   { name: 'Templates', href: '/templates', icon: FileText },
-  { name: 'WhatsApp Setup', href: '/whatsapp', icon: MessageCircle },
+  { name: 'WhatsApp Setup', href: '/whatsapp-persistent', icon: MessageCircle },
   { name: 'AI Agents', href: '/ai-agents', icon: Brain },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
