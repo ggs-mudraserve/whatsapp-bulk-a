@@ -484,11 +484,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           let messageSent = false;
           
+          // Also try active sessions directly
+          const activeSessions = workingWhatsAppService.getAllSessions();
+          console.log(`Found ${activeSessions.length} active sessions:`);
+          activeSessions.forEach(session => {
+            console.log(`- Session ${session.id}, phone: ${session.phoneNumber}, status: ${session.status}`);
+          });
+
+          // Try stored WhatsApp numbers first
           for (const number of whatsappNumbers) {
             const sessionData = number.sessionData as any;
             const sessionId = sessionData?.sessionId;
             
-            console.log(`Checking WhatsApp number ${number.phoneNumber}, sessionId: ${sessionId}`);
+            console.log(`Checking stored WhatsApp number ${number.phoneNumber}, sessionId: ${sessionId}`);
             
             if (sessionId) {
               try {
@@ -497,15 +505,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   conversation.contactPhone.replace('+', ''), 
                   validatedData.content
                 );
-                console.log(`✓ Message sent via WhatsApp to ${conversation.contactPhone} using session ${sessionId}`);
+                console.log(`✓ Message sent via WhatsApp to ${conversation.contactPhone} using stored session ${sessionId}`);
                 messageSent = true;
                 break; // Success, stop trying other numbers
               } catch (sendError) {
-                console.error(`✗ Failed to send via session ${sessionId}:`, sendError);
+                console.error(`✗ Failed to send via stored session ${sessionId}:`, sendError);
                 continue; // Try next session
               }
             } else {
-              console.log(`No session ID found for WhatsApp number ${number.phoneNumber}`);
+              console.log(`No session ID found for stored WhatsApp number ${number.phoneNumber}`);
+            }
+          }
+          
+          // If no stored sessions worked, try active sessions directly
+          if (!messageSent && activeSessions.length > 0) {
+            console.log('Trying active sessions directly...');
+            for (const session of activeSessions) {
+              if (session.status === 'connected') {
+                try {
+                  await workingWhatsAppService.sendMessage(
+                    session.id, 
+                    conversation.contactPhone.replace('+', ''), 
+                    validatedData.content
+                  );
+                  console.log(`✓ Message sent via WhatsApp to ${conversation.contactPhone} using active session ${session.id}`);
+                  messageSent = true;
+                  break;
+                } catch (sendError) {
+                  console.error(`✗ Failed to send via active session ${session.id}:`, sendError);
+                  continue;
+                }
+              }
             }
           }
           
@@ -663,6 +693,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`✓ Direct message sent via WhatsApp to ${recipientPhone} using session ${sessionId}`);
         } else {
           console.log(`No session ID found for WhatsApp number ${selectedNumber.phoneNumber}`);
+          
+          // Try active sessions as fallback
+          const activeSessions = workingWhatsAppService.getAllSessions();
+          console.log(`Trying ${activeSessions.length} active sessions for direct message...`);
+          
+          for (const session of activeSessions) {
+            if (session.status === 'connected') {
+              try {
+                await workingWhatsAppService.sendMessage(session.id, recipientPhone.replace('+', ''), message);
+                console.log(`✓ Direct message sent via active session ${session.id} to ${recipientPhone}`);
+                break;
+              } catch (sendError) {
+                console.error(`✗ Failed to send direct message via session ${session.id}:`, sendError);
+                continue;
+              }
+            }
+          }
         }
       } catch (error) {
         console.error('WhatsApp send error:', error);

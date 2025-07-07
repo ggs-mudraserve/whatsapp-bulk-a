@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { format, isToday, isYesterday } from 'date-fns';
+import ConnectionWarning from './connection-warning';
 
 interface Conversation {
   id: number;
@@ -154,8 +155,10 @@ export default function AdvancedInbox() {
   };
 
   return (
-    <div className="flex h-full gap-6">
-      {/* Conversations Sidebar */}
+    <div className="h-full">
+      <ConnectionWarning />
+      <div className="flex h-full gap-6">
+        {/* Conversations Sidebar */}
       <Card className="w-96 flex flex-col">
         {/* Header */}
         <div className="p-4 border-b">
@@ -399,6 +402,7 @@ export default function AdvancedInbox() {
           </>
         )}
       </Card>
+      </div>
     </div>
   );
 }

@@ -213,9 +213,10 @@ export default function DirectMessage({ onClose }: DirectMessageProps) {
             </div>
 
             {availableNumbers.length === 0 && !numbersLoading && (
-              <p className="text-sm text-red-600">
-                No active WhatsApp numbers available. Please connect a number first.
-              </p>
+              <div className="text-sm text-red-600 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="font-medium">No active WhatsApp numbers available</p>
+                <p className="mt-1">Please go to "WhatsApp Setup" and connect a number by scanning the QR code first.</p>
+              </div>
             )}
           </form>
         </Form>
