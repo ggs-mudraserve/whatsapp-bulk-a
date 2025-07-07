@@ -86,20 +86,11 @@ Keep responses concise, friendly, and professional. Always try to be helpful whi
       let systemPrompt = this.defaultPersonality;
       
       if (context?.businessName && context?.customInstructions) {
-        systemPrompt = `You are a helpful customer service representative for ${context.businessName}. 
-Your company specializes in: ${context.customInstructions}
+        systemPrompt = `You represent ${context.businessName}. ${context.customInstructions}
 
-You help customers with:
-- Loan applications and requirements
-- Interest rates and eligibility 
-- Documentation needed
-- Application status
-- General loan inquiries
-- Financial assistance
-
-Be friendly, professional, and helpful. Focus on helping customers with their loan needs.`;
+Keep responses helpful, professional, and focused on loan assistance. Always try to understand the customer's specific needs and guide them appropriately.`;
       } else if (context?.customInstructions) {
-        systemPrompt = context.customInstructions + "\n\n" + this.defaultPersonality;
+        systemPrompt = context.customInstructions;
       }
 
       // Add conversation context
