@@ -89,6 +89,7 @@ export default function ChatInterface() {
   const { selectedConversation } = useConversation();
   
   const [messageText, setMessageText] = useState("");
+  const [hasError, setHasError] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
   const [allAgents, setAllAgents] = useState<AIAgent[]>([]);
@@ -173,13 +174,26 @@ export default function ChatInterface() {
     },
   });
 
-  const { data: messages, isLoading: messagesLoading } = useQuery({
+  const { data: messages = [], isLoading: messagesLoading, error: messagesError } = useQuery({
     queryKey: ["/api/messages", selectedConversation?.id],
     queryFn: async () => {
       if (!selectedConversation?.id) return [];
-      const response = await fetch(`/api/messages?conversationId=${selectedConversation.id}`);
-      if (!response.ok) throw new Error('Failed to fetch messages');
-      return response.json();
+      try {
+        const response = await fetch(`/api/messages?conversationId=${selectedConversation.id}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!response.ok) {
+          console.warn('Messages API error:', response.status, response.statusText);
+          return [];
+        }
+        return response.json();
+      } catch (error) {
+        console.warn('Failed to fetch messages:', error);
+        return [];
+      }
     },
     enabled: !!selectedConversation?.id,
     retry: false,
@@ -332,6 +346,45 @@ export default function ChatInterface() {
   // Debug logging
   console.log('ChatInterface - selectedConversation:', selectedConversation);
   console.log('ChatInterface - messages:', messages);
+  console.log('ChatInterface - messagesError:', messagesError);
+  
+  // Handle errors gracefully
+  if (messagesError) {
+    console.warn('Messages loading error:', messagesError);
+  }
+  
+  // Add error boundary
+  useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error('Chat interface error:', error);
+      setHasError(true);
+    };
+    
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+  
+  if (hasError) {
+    return (
+      <Card className="h-full flex items-center justify-center">
+        <div className="text-center text-gray-500">
+          <MessageCircle className="w-16 h-16 mx-auto mb-4 text-red-300" />
+          <p className="text-lg">Chat interface error</p>
+          <p className="text-sm">Please refresh the page or try again</p>
+          <Button 
+            variant="outline" 
+            className="mt-4" 
+            onClick={() => {
+              setHasError(false);
+              window.location.reload();
+            }}
+          >
+            Refresh
+          </Button>
+        </div>
+      </Card>
+    );
+  }
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -386,25 +439,26 @@ export default function ChatInterface() {
     );
   }
 
-  return (
-    <>
-      <Card className="h-full flex flex-col">
-      {/* Chat Header */}
-      <CardHeader className="border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+  try {
+    return (
+      <>
+        <Card className="h-full flex flex-col">
+        {/* Chat Header */}
+        <CardHeader className="border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
             <div className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm",
-              getAvatarColor(selectedConversation.contactName)
+              getAvatarColor(selectedConversation?.contactName || 'Unknown')
             )}>
-              {getInitials(selectedConversation.contactName)}
+              {getInitials(selectedConversation?.contactName || 'Unknown')}
             </div>
             <div>
               <p className="text-sm font-medium text-gray-800">
-                {selectedConversation.contactName}
+                {selectedConversation?.contactName || 'Unknown Contact'}
               </p>
               <p className="text-xs text-gray-500">
-                {selectedConversation.contactPhone}
+                {selectedConversation?.contactPhone || 'No phone number'}
               </p>
             </div>
           </div>
@@ -670,5 +724,24 @@ export default function ChatInterface() {
       </DialogContent>
     </Dialog>
   </>
-  );
+    );
+  } catch (error) {
+    console.error('ChatInterface render error:', error);
+    return (
+      <Card className="h-full flex items-center justify-center">
+        <div className="text-center text-gray-500">
+          <MessageCircle className="w-16 h-16 mx-auto mb-4 text-red-300" />
+          <p className="text-lg">Something went wrong</p>
+          <p className="text-sm">Please refresh the page or try again</p>
+          <Button 
+            variant="outline" 
+            className="mt-4" 
+            onClick={() => window.location.reload()}
+          >
+            Refresh Page
+          </Button>
+        </div>
+      </Card>
+    );
+  }
 }
