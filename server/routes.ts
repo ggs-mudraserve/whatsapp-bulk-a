@@ -89,7 +89,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const numbers = await storage.getWhatsappNumbers(userId);
-      res.json(numbers);
+      
+      // Check which numbers have active sessions
+      global.activeSessions = global.activeSessions || new Map();
+      const userSessions = Array.from(global.activeSessions.entries())
+        .filter(([key, session]) => session.userId === userId && session.connected)
+        .map(([key, session]) => ({
+          phoneNumber: session.phoneNumber,
+          sessionId: session.sessionId
+        }));
+      
+      // Merge database numbers with active session info
+      const numbersWithStatus = numbers.map(number => {
+        const activeSession = userSessions.find(session => 
+          session.phoneNumber === number.phoneNumber
+        );
+        
+        return {
+          ...number,
+          isActiveSession: !!activeSession,
+          sessionId: activeSession?.sessionId,
+          // Override status if there's an active session
+          status: activeSession ? 'connected' : number.status
+        };
+      });
+      
+      // Also add any active sessions that might not be in the database yet
+      const phoneNumbersInDb = numbers.map(n => n.phoneNumber);
+      const additionalSessions = userSessions.filter(session => 
+        session.phoneNumber && !phoneNumbersInDb.includes(session.phoneNumber)
+      );
+      
+      for (const session of additionalSessions) {
+        numbersWithStatus.push({
+          id: Date.now(), // Temporary ID for active session
+          userId,
+          phoneNumber: session.phoneNumber,
+          displayName: `Active Session`,
+          status: 'connected',
+          qrConnected: true,
+          isActiveSession: true,
+          sessionId: session.sessionId,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+      
+      res.json(numbersWithStatus);
     } catch (error) {
       console.error("Error fetching WhatsApp numbers:", error);
       res.status(500).json({ message: "Failed to fetch WhatsApp numbers" });

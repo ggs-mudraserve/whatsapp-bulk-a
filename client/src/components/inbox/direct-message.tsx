@@ -89,7 +89,7 @@ export default function DirectMessage({ onClose }: DirectMessageProps) {
     });
   };
 
-  const availableNumbers = Array.isArray(whatsappNumbers) ? whatsappNumbers.filter((num: any) => num.status === 'active') : [];
+  const availableNumbers = Array.isArray(whatsappNumbers) ? whatsappNumbers.filter((num: any) => num.status === 'connected') : [];
 
   return (
     <Card>
