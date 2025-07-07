@@ -21,12 +21,9 @@ interface BulkMessageFormProps {
 }
 
 export default function BulkMessageForm({ onSuccess }: BulkMessageFormProps) {
+  console.log('BulkMessageForm: Component starting to render');
+  
   const { toast } = useToast();
-
-  // Add error boundary to catch any rendering errors
-  if (!toast) {
-    return <div>Loading...</div>;
-  }
   
   // Form state
   const [campaignName, setCampaignName] = useState("");
