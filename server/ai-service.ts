@@ -82,11 +82,24 @@ Keep responses concise, friendly, and professional. Always try to be helpful whi
     try {
       const client = this.createClient(config);
       
-      // Build context-aware system prompt
-      let systemPrompt = context?.customInstructions || this.defaultPersonality;
+      // Build context-aware system prompt with business context
+      let systemPrompt = this.defaultPersonality;
       
-      if (context?.businessName) {
-        systemPrompt += `\n\nYou are representing ${context.businessName}.`;
+      if (context?.businessName && context?.customInstructions) {
+        systemPrompt = `You are a helpful customer service representative for ${context.businessName}. 
+Your company specializes in: ${context.customInstructions}
+
+You help customers with:
+- Loan applications and requirements
+- Interest rates and eligibility 
+- Documentation needed
+- Application status
+- General loan inquiries
+- Financial assistance
+
+Be friendly, professional, and helpful. Focus on helping customers with their loan needs.`;
+      } else if (context?.customInstructions) {
+        systemPrompt = context.customInstructions + "\n\n" + this.defaultPersonality;
       }
 
       // Add conversation context
