@@ -44,6 +44,8 @@ export default function AdvancedInbox() {
   const [selectedNumber, setSelectedNumber] = useState<string>('all');
   const [showNewChat, setShowNewChat] = useState(false);
   const [newChatPhone, setNewChatPhone] = useState('');
+  const [newChatName, setNewChatName] = useState('');
+  const [newChatStep, setNewChatStep] = useState<'phone' | 'name'>('phone');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -114,33 +116,41 @@ export default function AdvancedInbox() {
 
   // New chat mutation
   const newChatMutation = useMutation({
-    mutationFn: async (phoneNumber: string) => {
+    mutationFn: async ({ phoneNumber, contactName }: { phoneNumber: string; contactName: string }) => {
       // Clean phone number
       const cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
       
-      // First create/get contact
-      const contactResponse = await apiRequest('POST', '/api/contacts', {
-        name: cleanPhone,
-        phone: cleanPhone,
-        tags: [],
-        status: 'active'
+      // First create/get contact with the provided name
+      const contactResponse = await apiRequest('/api/contacts', {
+        method: 'POST',
+        body: {
+          name: contactName || cleanPhone,
+          phone: cleanPhone,
+          tags: [],
+          status: 'active'
+        }
       });
       
       // Then create conversation with required fields
-      return await apiRequest('POST', '/api/conversations', {
-        contactId: contactResponse.id,
-        contactName: cleanPhone,
-        contactPhone: cleanPhone
+      return await apiRequest('/api/conversations', {
+        method: 'POST',
+        body: {
+          contactId: contactResponse.id,
+          contactName: contactName || cleanPhone,
+          contactPhone: cleanPhone
+        }
       });
     },
     onSuccess: (newConversation) => {
       setSelectedConversationId(newConversation.id);
       setShowNewChat(false);
       setNewChatPhone('');
+      setNewChatName('');
+      setNewChatStep('phone');
       refetchConversations();
       toast({
         title: 'New chat created',
-        description: 'You can now start messaging.',
+        description: `Contact "${newChatName || newChatPhone}" added successfully. You can now start messaging.`,
       });
     },
     onError: (error) => {
@@ -268,37 +278,89 @@ export default function AdvancedInbox() {
           <div className="mb-3">
             {showNewChat ? (
               <div className="space-y-2">
-                <Input
-                  placeholder="Enter phone number (e.g., +1234567890)"
-                  value={newChatPhone}
-                  onChange={(e) => setNewChatPhone(e.target.value)}
-                  className="text-sm"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && newChatPhone.trim() && !newChatMutation.isPending) {
-                      newChatMutation.mutate(newChatPhone);
-                    }
-                  }}
-                />
-                <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
-                    onClick={() => newChatMutation.mutate(newChatPhone)}
-                    disabled={!newChatPhone.trim() || newChatMutation.isPending}
-                    className="flex-1"
-                  >
-                    {newChatMutation.isPending ? 'Creating...' : 'Start Chat'}
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => {
-                      setShowNewChat(false);
-                      setNewChatPhone('');
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
+                {newChatStep === 'phone' ? (
+                  <>
+                    <div className="text-sm text-gray-600 mb-2">Step 1: Enter Phone Number</div>
+                    <Input
+                      placeholder="Enter phone number (e.g., +1234567890)"
+                      value={newChatPhone}
+                      onChange={(e) => setNewChatPhone(e.target.value)}
+                      className="text-sm"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && newChatPhone.trim()) {
+                          setNewChatStep('name');
+                        }
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        onClick={() => setNewChatStep('name')}
+                        disabled={!newChatPhone.trim()}
+                        className="flex-1"
+                      >
+                        Next
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => {
+                          setShowNewChat(false);
+                          setNewChatPhone('');
+                          setNewChatStep('phone');
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-sm text-gray-600 mb-2">Step 2: Enter Contact Name</div>
+                    <div className="text-xs text-gray-500 mb-2">Phone: {newChatPhone}</div>
+                    <Input
+                      placeholder="Enter contact name (e.g., John Doe)"
+                      value={newChatName}
+                      onChange={(e) => setNewChatName(e.target.value)}
+                      className="text-sm"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && newChatName.trim() && !newChatMutation.isPending) {
+                          newChatMutation.mutate({ phoneNumber: newChatPhone, contactName: newChatName });
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        onClick={() => newChatMutation.mutate({ phoneNumber: newChatPhone, contactName: newChatName })}
+                        disabled={!newChatName.trim() || newChatMutation.isPending}
+                        className="flex-1"
+                      >
+                        {newChatMutation.isPending ? 'Creating...' : 'Create Chat'}
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => setNewChatStep('phone')}
+                      >
+                        Back
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => {
+                          setShowNewChat(false);
+                          setNewChatPhone('');
+                          setNewChatName('');
+                          setNewChatStep('phone');
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <Button 
