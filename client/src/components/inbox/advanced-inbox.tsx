@@ -47,11 +47,19 @@ export default function AdvancedInbox() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Fetch WhatsApp numbers for dropdown
+  // Fetch WhatsApp numbers for dropdown with real-time sync
   const { data: whatsappSessions = [] } = useQuery({
     queryKey: ['/api/whatsapp/active-sessions'],
-    refetchInterval: 5000,
+    refetchInterval: 2000, // Update every 2 seconds for real-time sync
+    refetchIntervalInBackground: true,
   });
+
+  // Debug log to see sessions data
+  useEffect(() => {
+    if (whatsappSessions?.sessions) {
+      console.log('WhatsApp Sessions:', whatsappSessions.sessions);
+    }
+  }, [whatsappSessions]);
 
   // Real-time data fetching
   const { data: conversations = [], isLoading: conversationsLoading, refetch: refetchConversations } = useQuery({
@@ -233,14 +241,19 @@ export default function AdvancedInbox() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Numbers</SelectItem>
-                {whatsappSessions?.sessions?.filter(session => session.status === 'connected').map((session) => (
-                  <SelectItem key={session.id} value={session.id}>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      {session.phoneNumber || session.id.slice(-10)}
-                    </div>
-                  </SelectItem>
-                ))}
+                {whatsappSessions?.sessions?.map((session) => {
+                  if (session.status === 'connected' && session.phoneNumber) {
+                    return (
+                      <SelectItem key={session.id} value={session.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          {session.phoneNumber}
+                        </div>
+                      </SelectItem>
+                    );
+                  }
+                  return null;
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -262,7 +275,6 @@ export default function AdvancedInbox() {
                     disabled={!newChatPhone.trim() || newChatMutation.isPending}
                     className="flex-1"
                   >
-                    <MessageSquarePlus className="w-4 h-4 mr-1" />
                     {newChatMutation.isPending ? 'Creating...' : 'Start Chat'}
                   </Button>
                   <Button 
@@ -283,7 +295,6 @@ export default function AdvancedInbox() {
                 className="w-full" 
                 onClick={() => setShowNewChat(true)}
               >
-                <MessageSquarePlus className="w-4 h-4 mr-2" />
                 New Chat
               </Button>
             )}
