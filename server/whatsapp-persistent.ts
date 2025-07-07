@@ -440,7 +440,7 @@ class PersistentWhatsAppService {
           conversation = await storage.createConversation({
             userId: session.userId,
             contactId: contact.id,
-            whatsappNumberId: 1, // Default WhatsApp number
+            whatsappNumberId: null, // No specific WhatsApp number reference
             contactName: contact.name,
             contactPhone: contact.phoneNumber,
             lastMessage: messageBody,

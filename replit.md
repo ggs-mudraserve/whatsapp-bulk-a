@@ -189,6 +189,9 @@ Changelog:
 - July 07, 2025. Added Delete Session buttons with confirmation - users can permanently delete WhatsApp sessions
 - July 07, 2025. Implemented Delete Account functionality with comprehensive data cleanup across all user resources
 - July 07, 2025. Enhanced session management with proper cleanup of auth directories and client resources
+- July 07, 2025. Fixed new chat creation functionality - resolved foreign key constraint errors and improved conversation creation
+- July 07, 2025. Enhanced inbox interface - removed + icons, added real-time WhatsApp number selection, improved phone number validation
+- July 07, 2025. Fixed database constraint issues in WhatsApp message processing by removing hardcoded whatsapp_number_id references
 - July 07, 2025. Fixed WhatsApp connection persistence issue - sessions now stay alive properly for QR scanning
 - July 07, 2025. Implemented intelligent cleanup logic that prevents premature session termination
 - July 07, 2025. Added real-time connection status polling to track successful QR scans
