@@ -529,11 +529,20 @@ class PersistentWhatsAppService {
             // Generate AI response using the AI service
             const { multiAIService } = await import('./ai-service');
             
-            // Ensure we have valid defaults - handle both camelCase and snake_case
+            // Check for custom agents stored in localStorage (they would have their own API keys)
+            // If no custom agent available, we need a valid API key
+            const customApiKey = chatbotSettings.customApiKey || chatbotSettings.custom_api_key;
+            const systemApiKey = process.env.OPENAI_API_KEY;
+            
+            if (!customApiKey && (!systemApiKey || systemApiKey.includes('hxMA'))) {
+              console.log('❌ No valid API key available. User needs to add their own OpenAI API key.');
+              throw new Error('No valid OpenAI API key configured. Please add your API key in AI Agents settings.');
+            }
+
             const aiConfig = {
               provider: chatbotSettings.aiProvider || chatbotSettings.ai_provider || 'openai',
               model: chatbotSettings.aiModel || chatbotSettings.ai_model || 'gpt-4o',
-              apiKey: chatbotSettings.customApiKey || chatbotSettings.custom_api_key || process.env.OPENAI_API_KEY,
+              apiKey: customApiKey || systemApiKey,
               temperature: chatbotSettings.temperature || 0.7,
               maxTokens: chatbotSettings.maxTokens || chatbotSettings.max_tokens || 150
             };

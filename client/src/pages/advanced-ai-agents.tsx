@@ -530,9 +530,11 @@ export default function AdvancedAIAgents() {
             <Alert>
               <Key className="w-4 h-4" />
               <AlertDescription>
-                API keys are stored locally and used only for your agents. We never share them.
+                <strong>Required:</strong> Add your OpenAI API key to enable AI auto-replies. 
                 <br />
-                <strong>Important:</strong> Make sure to copy the complete API key from OpenAI (usually starts with 'sk-proj-' and is about 100+ characters long).
+                API keys are stored securely and used only for your agents. Copy the complete key from OpenAI (starts with 'sk-proj-' and is 100+ characters long).
+                <br />
+                <strong>Note:</strong> Without a valid API key, the AI chatbot cannot respond to WhatsApp messages.
               </AlertDescription>
             </Alert>
             
