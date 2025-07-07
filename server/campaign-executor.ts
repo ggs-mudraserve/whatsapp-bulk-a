@@ -302,15 +302,25 @@ export class CampaignExecutor {
               const formattedNumber = contact.phoneNumber.replace(/\D/g, '');
               const whatsappId = formattedNumber.includes('@') ? formattedNumber : `${formattedNumber}@c.us`;
               
-              // Prepare message options with CTA buttons if template has them
-              const messageOptions = selectedTemplate && selectedTemplate.ctaButtons && selectedTemplate.ctaButtons.length > 0 
-                ? { 
-                    ctaButtons: selectedTemplate.ctaButtons,
-                    template: selectedTemplate 
-                  }
-                : undefined;
+              // Prepare message options with CTA buttons and media if template has them
+              const messageOptions: any = {};
+              
+              if (selectedTemplate) {
+                if (selectedTemplate.ctaButtons && selectedTemplate.ctaButtons.length > 0) {
+                  messageOptions.ctaButtons = selectedTemplate.ctaButtons;
+                  messageOptions.template = selectedTemplate;
+                }
+                
+                if (selectedTemplate.mediaUrl && selectedTemplate.mediaType) {
+                  messageOptions.mediaUrl = selectedTemplate.mediaUrl;
+                  messageOptions.mediaType = selectedTemplate.mediaType;
+                  messageOptions.mediaCaption = selectedTemplate.mediaCaption;
+                }
+              }
+              
+              const hasOptions = Object.keys(messageOptions).length > 0;
 
-              const result = await whatsappClient.sendMessage(whatsappId, messageContent, messageOptions);
+              const result = await whatsappClient.sendMessage(whatsappId, messageContent, hasOptions ? messageOptions : undefined);
               messageId = result.id || messageId;
               messageStatus = 'sent';
               deliveredCount++;
@@ -321,8 +331,11 @@ export class CampaignExecutor {
               stats.lastUsed = new Date();
               stats.totalSent++;
               
-              if (messageOptions?.ctaButtons) {
-                console.log(`✅ Message with ${messageOptions.ctaButtons.length} CTA buttons sent to ${contact.phoneNumber} via ${selectedNumber}`);
+              if (hasOptions) {
+                const features = [];
+                if (messageOptions.ctaButtons) features.push(`${messageOptions.ctaButtons.length} CTA buttons`);
+                if (messageOptions.mediaType) features.push(`${messageOptions.mediaType} media`);
+                console.log(`✅ Enhanced message with ${features.join(' + ')} sent to ${contact.phoneNumber} via ${selectedNumber}`);
               } else {
                 console.log(`✓ Message sent to ${contact.phoneNumber} via ${selectedNumber}`);
               }

@@ -716,7 +716,10 @@ class PersistentWhatsAppService {
 
   async sendMessage(sessionId: string, to: string, message: string, options?: { 
     ctaButtons?: Array<{ text: string; url?: string; type: 'url' | 'phone' | 'text' }>,
-    template?: any
+    template?: any,
+    mediaUrl?: string,
+    mediaType?: string,
+    mediaCaption?: string
   }) {
     console.log(`Attempting to send message via session ${sessionId} to ${to}: ${message}`);
     
@@ -754,8 +757,42 @@ class PersistentWhatsAppService {
       // Format phone number for WhatsApp
       const chatId = to.includes('@') ? to : `${to}@c.us`;
       
+      // Handle media messages first
+      if (options?.mediaUrl && options?.mediaType) {
+        console.log(`📎 Sending ${options.mediaType} media message`);
+        
+        try {
+          const { MessageMedia } = require('whatsapp-web.js');
+          
+          // Handle base64 data or URL
+          let media;
+          if (options.mediaUrl.startsWith('data:')) {
+            // Base64 data
+            const base64Data = options.mediaUrl.split(',')[1];
+            const mimeType = options.mediaUrl.split(';')[0].split(':')[1];
+            media = new MessageMedia(mimeType, base64Data);
+          } else {
+            // URL - download and convert to base64 (simplified for now)
+            media = await MessageMedia.fromUrl(options.mediaUrl);
+          }
+          
+          // Send media with caption
+          const result = await client.sendMessage(chatId, media, {
+            caption: options.mediaCaption || message
+          });
+          
+          console.log(`✅ ${options.mediaType} media message sent successfully`);
+          return result;
+        } catch (mediaError) {
+          console.log('❌ Media message failed, sending as text:', mediaError.message);
+          // Fallback to text message
+          const fallbackMessage = message + (options.mediaCaption ? `\n\n📎 ${options.mediaCaption}` : '');
+          const result = await client.sendMessage(chatId, fallbackMessage);
+          return result;
+        }
+      }
       // Check if we need to send CTA buttons
-      if (options?.ctaButtons && options.ctaButtons.length > 0) {
+      else if (options?.ctaButtons && options.ctaButtons.length > 0) {
         console.log(`📱 Sending message with ${options.ctaButtons.length} CTA buttons`);
         
         try {

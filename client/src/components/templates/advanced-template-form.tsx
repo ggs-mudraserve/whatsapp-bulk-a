@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, X, Eye, EyeOff, Globe, Tag, Clock, Variable } from "lucide-react";
+import { Plus, X, Eye, EyeOff, Globe, Tag, Clock, Variable, Upload, Image, Video, FileText, Music } from "lucide-react";
 import { insertTemplateSchema } from "@shared/schema";
 
 const templateFormSchema = insertTemplateSchema.extend({
@@ -23,6 +23,9 @@ const templateFormSchema = insertTemplateSchema.extend({
   content: z.string().min(10, "Template content too short").max(4000, "Content too long"),
   language: z.string().optional(),
   isActive: z.boolean().optional(),
+  mediaType: z.string().optional(),
+  mediaUrl: z.string().optional(),
+  mediaCaption: z.string().optional(),
 }).omit({ variables: true, estimatedReadTime: true, lastUsed: true, usageCount: true });
 
 type TemplateFormData = z.infer<typeof templateFormSchema>;
@@ -59,6 +62,8 @@ export default function AdvancedTemplateForm({ onSuccess, template, isEdit }: Ad
   const [newTag, setNewTag] = useState("");
   const [previewMode, setPreviewMode] = useState(false);
   const [detectedVariables, setDetectedVariables] = useState<string[]>([]);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string>(template?.mediaUrl || "");
 
   const form = useForm<TemplateFormData>({
     resolver: zodResolver(templateFormSchema),
@@ -68,6 +73,9 @@ export default function AdvancedTemplateForm({ onSuccess, template, isEdit }: Ad
       content: template?.content || "",
       language: template?.language || "en",
       isActive: template?.isActive !== false,
+      mediaType: template?.mediaType || "",
+      mediaUrl: template?.mediaUrl || "",
+      mediaCaption: template?.mediaCaption || "",
       ctaButtons: template?.ctaButtons || [],
       tags: template?.tags || [],
     },
@@ -97,6 +105,7 @@ export default function AdvancedTemplateForm({ onSuccess, template, isEdit }: Ad
         tags,
         variables: detectedVariables,
         estimatedReadTime: estimateReadTime(data.content),
+        mediaUrl: mediaPreview,
       };
 
       if (isEdit && template?.id) {
@@ -162,7 +171,67 @@ export default function AdvancedTemplateForm({ onSuccess, template, isEdit }: Ad
 
   const insertVariable = (variable: string) => {
     const currentContent = form.getValues("content");
-    form.setValue("content", currentContent + variable);
+    const textarea = document.querySelector('textarea[name="content"]') as HTMLTextAreaElement;
+    
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newContent = currentContent.substring(0, start) + variable + currentContent.substring(end);
+      form.setValue("content", newContent);
+      
+      // Focus back and set cursor position
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + variable.length, start + variable.length);
+      }, 10);
+    } else {
+      form.setValue("content", currentContent + variable);
+    }
+  };
+
+  const handleMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setMediaFile(file);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setMediaPreview(e.target?.result as string);
+        form.setValue("mediaUrl", e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+      
+      // Set media type based on file type
+      if (file.type.startsWith('image/')) {
+        form.setValue("mediaType", "image");
+      } else if (file.type.startsWith('video/')) {
+        form.setValue("mediaType", "video");
+      } else if (file.type.startsWith('audio/')) {
+        form.setValue("mediaType", "audio");
+      } else {
+        form.setValue("mediaType", "document");
+      }
+    }
+  };
+
+  const removeMedia = () => {
+    setMediaFile(null);
+    setMediaPreview("");
+    form.setValue("mediaType", "");
+    form.setValue("mediaUrl", "");
+    form.setValue("mediaCaption", "");
+  };
+
+  const renderVariableContent = (content: string) => {
+    // Replace variables with sample data for preview
+    return content
+      .replace(/\{\{name\}\}/g, "John Doe")
+      .replace(/\{\{company\}\}/g, "Tech Corp")
+      .replace(/\{\{phone\}\}/g, "+1234567890")
+      .replace(/\{\{email\}\}/g, "john@example.com")
+      .replace(/\{\{amount\}\}/g, "₹50,000")
+      .replace(/\{\{date\}\}/g, new Date().toLocaleDateString());
   };
 
   const commonVariables = ["{{name}}", "{{company}}", "{{phone}}", "{{email}}", "{{amount}}", "{{date}}"];
@@ -204,8 +273,31 @@ export default function AdvancedTemplateForm({ onSuccess, template, isEdit }: Ad
                     <Badge variant="secondary">{form.watch("category")}</Badge>
                     <Badge variant="outline">{LANGUAGES.find(l => l.value === form.watch("language"))?.label}</Badge>
                   </div>
+                  {/* Media Preview in Template Preview */}
+                  {mediaPreview && (
+                    <div className="mb-4">
+                      {form.watch("mediaType") === "image" && (
+                        <img 
+                          src={mediaPreview} 
+                          alt="Media preview" 
+                          className="max-w-full h-32 object-cover rounded border"
+                        />
+                      )}
+                      {form.watch("mediaType") === "video" && (
+                        <video 
+                          src={mediaPreview} 
+                          className="max-w-full h-32 rounded border"
+                          muted
+                        />
+                      )}
+                      {form.watch("mediaCaption") && (
+                        <p className="text-xs text-gray-600 mt-1">{form.watch("mediaCaption")}</p>
+                      )}
+                    </div>
+                  )}
+                  
                   <div className="whitespace-pre-wrap text-sm">
-                    {form.watch("content") || "Start typing your message..."}
+                    {renderVariableContent(form.watch("content") || "Start typing your message...")}
                   </div>
                   {ctaButtons.length > 0 && (
                     <div className="mt-4 space-y-2">
@@ -428,6 +520,113 @@ export default function AdvancedTemplateForm({ onSuccess, template, isEdit }: Ad
                             </Badge>
                           ))}
                         </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Media Upload */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      Media Attachment (Optional)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {!mediaPreview ? (
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Upload Media</label>
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                          <div className="flex justify-center space-x-4 mb-4">
+                            <Image className="h-8 w-8 text-gray-400" />
+                            <Video className="h-8 w-8 text-gray-400" />
+                            <Music className="h-8 w-8 text-gray-400" />
+                            <FileText className="h-8 w-8 text-gray-400" />
+                          </div>
+                          <p className="text-gray-500 mb-4">
+                            Upload images, videos, audio, or documents to enhance your template
+                          </p>
+                          <input
+                            type="file"
+                            accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
+                            onChange={handleMediaUpload}
+                            className="hidden"
+                            id="media-upload"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => document.getElementById('media-upload')?.click()}
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            Choose File
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Media Preview</label>
+                        <div className="border rounded-lg p-4">
+                          {form.watch("mediaType") === "image" && (
+                            <img 
+                              src={mediaPreview} 
+                              alt="Preview" 
+                              className="max-w-full h-40 object-cover rounded"
+                            />
+                          )}
+                          {form.watch("mediaType") === "video" && (
+                            <video 
+                              src={mediaPreview} 
+                              controls 
+                              className="max-w-full h-40 rounded"
+                            />
+                          )}
+                          {form.watch("mediaType") === "audio" && (
+                            <audio 
+                              src={mediaPreview} 
+                              controls 
+                              className="w-full"
+                            />
+                          )}
+                          {form.watch("mediaType") === "document" && (
+                            <div className="flex items-center gap-2 p-4 bg-gray-50 rounded">
+                              <FileText className="h-8 w-8 text-gray-600" />
+                              <span className="text-sm text-gray-600">Document attached</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center mt-3">
+                            <span className="text-xs text-gray-500">
+                              Type: {form.watch("mediaType")}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={removeMedia}
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <FormField
+                          control={form.control}
+                          name="mediaCaption"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Media Caption (Optional)</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Add a caption for your media..."
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
                     )}
                   </CardContent>

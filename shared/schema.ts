@@ -100,6 +100,9 @@ export const templates = pgTable("templates", {
   content: text("content").notNull(),
   variables: jsonb("variables").$type<string[]>().default([]), // {{name}}, {{company}}, etc.
   ctaButtons: jsonb("cta_buttons").$type<{ text: string; url?: string; type: 'url' | 'phone' | 'text' }[]>().default([]),
+  mediaType: varchar("media_type"), // image, video, audio, document
+  mediaUrl: text("media_url"), // URL or base64 data
+  mediaCaption: text("media_caption"), // Caption for media
   tags: jsonb("tags").$type<string[]>().default([]), // custom tags for filtering
   language: varchar("language").default("en"), // en, hi, es, etc.
   isActive: boolean("is_active").default(true),

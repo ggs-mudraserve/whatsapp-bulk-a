@@ -281,3 +281,12 @@ Changelog:
   - Category breakdown with visual icons and counts
   - Advanced filtering by category, language, status, and search terms
   - Performance metrics including average usage and read time calculations
+- July 07, 2025. **Media Support and Variable Functionality Enhancement:**
+  - Added comprehensive media attachment support (images, videos, audio, documents)
+  - Enhanced database schema with mediaType, mediaUrl, and mediaCaption fields
+  - Implemented smart variable insertion with cursor positioning and real-time detection
+  - Created media upload interface with preview functionality for all media types
+  - Enhanced WhatsApp integration to send media messages with captions through WhatsApp Web
+  - Fixed variable replacement system with sample data preview in template preview mode
+  - Updated campaign executor to handle both CTA buttons and media attachments simultaneously
+  - Added fallback mechanisms for unsupported media formats with graceful degradation
