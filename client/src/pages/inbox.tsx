@@ -91,7 +91,16 @@ export default function Inbox() {
               </div>
             </div>
           }>
-            <SimpleTestInbox />
+            <div className="p-8 bg-white rounded-lg">
+              <h1 className="text-2xl font-bold text-blue-600 mb-4">Inbox Page Test</h1>
+              <p className="text-gray-700 mb-4">If you can see this, the page is rendering correctly.</p>
+              <div className="bg-yellow-100 p-4 rounded border">
+                <p className="text-yellow-800">Authentication Status: {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</p>
+                <p className="text-yellow-800">User ID: {user?.id || 'No ID'}</p>
+                <p className="text-yellow-800">Loading: {isLoading ? 'Yes' : 'No'}</p>
+              </div>
+              <SimpleTestInbox />
+            </div>
           </ErrorBoundary>
         </main>
       </div>

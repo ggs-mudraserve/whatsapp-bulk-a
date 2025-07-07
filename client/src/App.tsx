@@ -17,9 +17,12 @@ import AIChatbot from "@/pages/ai-chatbot";
 import AIAgents from "@/pages/ai-agents";
 import WhatsAppSetupPersistent from "@/pages/whatsapp-setup-persistent";
 import FeaturesOverview from "@/pages/features-overview";
+import TestPage from "@/components/test-page";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+
+  console.log('Router render:', { isAuthenticated, isLoading, path: window.location.pathname });
 
   // Force landing page to show for unauthenticated users
   if (isLoading) {
@@ -44,7 +47,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Dashboard} />
-          <Route path="/inbox" component={Inbox} />
+          <Route path="/inbox" component={TestPage} />
           <Route path="/campaigns" component={Campaigns} />
           <Route path="/contacts" component={Contacts} />
           <Route path="/templates" component={Templates} />
