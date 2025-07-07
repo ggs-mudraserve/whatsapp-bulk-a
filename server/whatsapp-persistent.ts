@@ -525,6 +525,7 @@ class PersistentWhatsAppService {
           
           if (chatbotSettings && chatbotSettings.enabled) {
             console.log(`🤖 AI agent is enabled for user ${session.userId}, generating auto-reply...`);
+            console.log('Full chatbot settings object:', JSON.stringify(chatbotSettings, null, 2));
             
             // Generate AI response using the AI service
             const { multiAIService } = await import('./ai-service');
