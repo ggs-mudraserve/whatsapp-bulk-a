@@ -50,6 +50,10 @@ export default function AdvancedInbox() {
 
   const { data: messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useQuery({
     queryKey: ['/api/messages', selectedConversationId],
+    queryFn: async () => {
+      if (!selectedConversationId) return [];
+      return await apiRequest('GET', `/api/messages?conversationId=${selectedConversationId}`);
+    },
     enabled: !!selectedConversationId,
     refetchInterval: 1000, // Update messages every 1 second when conversation is open
     refetchIntervalInBackground: true,
@@ -68,9 +72,11 @@ export default function AdvancedInbox() {
     },
     onSuccess: () => {
       setMessageText('');
-      // Immediate refresh
-      refetchMessages();
-      refetchConversations();
+      // Immediate refresh with slight delay to ensure server processing
+      setTimeout(() => {
+        refetchMessages();
+        refetchConversations();
+      }, 100);
       
       toast({
         title: 'Message sent',
