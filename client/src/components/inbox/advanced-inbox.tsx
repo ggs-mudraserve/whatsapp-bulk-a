@@ -1,0 +1,398 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Search, MessageCircle, Phone, Clock, Send, CheckCheck, Check, MoreVertical, Paperclip, Smile } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { format, isToday, isYesterday } from 'date-fns';
+
+interface Conversation {
+  id: number;
+  contactId: number;
+  contactName: string;
+  contactPhone: string;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  unreadCount: number;
+  status: string;
+}
+
+interface Message {
+  id: number;
+  conversationId: number;
+  content: string;
+  direction: 'incoming' | 'outgoing';
+  status: 'sent' | 'delivered' | 'read' | 'failed';
+  messageType: 'text' | 'image' | 'document';
+  timestamp: string;
+}
+
+export default function AdvancedInbox() {
+  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [messageText, setMessageText] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  // Real-time data fetching
+  const { data: conversations = [], isLoading: conversationsLoading, refetch: refetchConversations } = useQuery({
+    queryKey: ['/api/conversations'],
+    refetchInterval: 2000, // Update every 2 seconds
+    refetchIntervalInBackground: true,
+  });
+
+  const { data: messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useQuery({
+    queryKey: ['/api/messages', selectedConversationId],
+    enabled: !!selectedConversationId,
+    refetchInterval: 1000, // Update messages every 1 second when conversation is open
+    refetchIntervalInBackground: true,
+  });
+
+  // Send message mutation
+  const sendMessageMutation = useMutation({
+    mutationFn: async (messageData: { content: string }) => {
+      if (!selectedConversationId) throw new Error('No conversation selected');
+      
+      return await apiRequest('POST', `/api/conversations/${selectedConversationId}/messages`, {
+        content: messageData.content,
+        direction: 'outgoing',
+        messageType: 'text',
+      });
+    },
+    onSuccess: () => {
+      setMessageText('');
+      // Immediate refresh
+      refetchMessages();
+      refetchConversations();
+      
+      toast({
+        title: 'Message sent',
+        description: 'Your message has been delivered.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Failed to send',
+        description: 'Message could not be sent. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Filter conversations based on search
+  const filteredConversations = conversations.filter((conv: Conversation) =>
+    conv.contactName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    conv.contactPhone?.includes(searchTerm)
+  );
+
+  const selectedConversation = conversations.find((conv: Conversation) => conv.id === selectedConversationId);
+
+  const handleSendMessage = () => {
+    if (!messageText.trim()) return;
+    sendMessageMutation.mutate({ content: messageText });
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const formatMessageTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    if (isToday(date)) {
+      return format(date, 'HH:mm');
+    } else if (isYesterday(date)) {
+      return 'Yesterday';
+    } else {
+      return format(date, 'MMM dd');
+    }
+  };
+
+  const getStatusIcon = (status: string, direction: string) => {
+    if (direction !== 'outgoing') return null;
+    
+    switch (status) {
+      case 'read':
+        return <CheckCheck className="w-3 h-3 text-blue-500" />;
+      case 'delivered':
+        return <CheckCheck className="w-3 h-3 text-gray-400" />;
+      case 'sent':
+        return <Check className="w-3 h-3 text-gray-400" />;
+      default:
+        return null;
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
+  };
+
+  const getAvatarColor = (name: string) => {
+    const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-yellow-500', 'bg-red-500', 'bg-indigo-500'];
+    const index = (name?.charCodeAt(0) || 0) % colors.length;
+    return colors[index];
+  };
+
+  return (
+    <div className="flex h-full gap-6">
+      {/* Conversations Sidebar */}
+      <Card className="w-96 flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Messages</h2>
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              {conversations.length} chats
+            </Badge>
+          </div>
+          
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="Search conversations..."
+              className="pl-10 bg-gray-50 border-0 focus:bg-white focus:ring-2 focus:ring-blue-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Conversations List */}
+        <ScrollArea className="flex-1">
+          {conversationsLoading ? (
+            <div className="p-4 space-y-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="animate-pulse flex items-start space-x-3 p-3">
+                  <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <h3 className="font-medium mb-2">No conversations</h3>
+              <p className="text-sm">Start a new conversation to see it here</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {filteredConversations.map((conversation: Conversation) => (
+                <div
+                  key={conversation.id}
+                  className={cn(
+                    "p-4 hover:bg-gray-50 cursor-pointer transition-colors relative",
+                    selectedConversationId === conversation.id && "bg-blue-50 border-r-4 border-r-blue-500"
+                  )}
+                  onClick={() => setSelectedConversationId(conversation.id)}
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className="relative">
+                      <Avatar className="w-12 h-12">
+                        <AvatarFallback className={cn(
+                          "text-white font-semibold",
+                          getAvatarColor(conversation.contactName)
+                        )}>
+                          {getInitials(conversation.contactName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {conversation.status === 'active' && (
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="font-semibold text-gray-900 truncate text-sm">
+                          {conversation.contactName || conversation.contactPhone}
+                        </h3>
+                        {conversation.lastMessageAt && (
+                          <span className="text-xs text-gray-500 flex-shrink-0">
+                            {formatMessageTime(conversation.lastMessageAt)}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 truncate mb-1">
+                        {conversation.lastMessage || 'No messages yet'}
+                      </p>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-400 flex items-center">
+                          <Phone className="w-3 h-3 mr-1" />
+                          {conversation.contactPhone}
+                        </span>
+                        {conversation.unreadCount > 0 && (
+                          <Badge className="bg-blue-500 text-white text-xs h-5 w-5 rounded-full flex items-center justify-center p-0">
+                            {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </Card>
+
+      {/* Chat Area */}
+      <Card className="flex-1 flex flex-col">
+        {!selectedConversation ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center text-gray-500">
+              <MessageCircle className="w-20 h-20 mx-auto mb-6 text-gray-300" />
+              <h3 className="text-xl font-semibold mb-2 text-gray-700">Welcome to your inbox</h3>
+              <p className="text-gray-500 max-w-sm">
+                Select a conversation from the sidebar to start messaging, or create a new conversation using the + button.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Chat Header */}
+            <div className="p-4 border-b bg-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="w-10 h-10">
+                    <AvatarFallback className={cn(
+                      "text-white font-semibold",
+                      getAvatarColor(selectedConversation.contactName)
+                    )}>
+                      {getInitials(selectedConversation.contactName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      {selectedConversation.contactName || selectedConversation.contactPhone}
+                    </h3>
+                    <p className="text-sm text-gray-500 flex items-center">
+                      <Phone className="w-3 h-3 mr-1" />
+                      {selectedConversation.contactPhone}
+                    </p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Messages Area */}
+            <ScrollArea className="flex-1 p-4">
+              {messagesLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className={cn(
+                      "animate-pulse flex",
+                      i % 2 === 0 ? "justify-end" : "justify-start"
+                    )}>
+                      <div className={cn(
+                        "p-3 rounded-lg max-w-xs",
+                        i % 2 === 0 ? "bg-gray-200" : "bg-gray-100"
+                      )}>
+                        <div className="h-4 bg-gray-300 rounded mb-2"></div>
+                        <div className="h-3 bg-gray-300 rounded w-16"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="text-center text-gray-500 py-12">
+                  <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <h4 className="font-medium mb-2">No messages yet</h4>
+                  <p className="text-sm">Start the conversation by sending your first message below.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map((message: Message) => (
+                    <div
+                      key={message.id}
+                      className={cn(
+                        "flex",
+                        message.direction === 'outgoing' ? "justify-end" : "justify-start"
+                      )}
+                    >
+                      <div className={cn(
+                        "max-w-xs lg:max-w-md px-4 py-3 rounded-2xl relative",
+                        message.direction === 'outgoing'
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-100 text-gray-900"
+                      )}>
+                        <p className="text-sm leading-relaxed">{message.content}</p>
+                        <div className={cn(
+                          "flex items-center justify-end space-x-1 mt-2",
+                          message.direction === 'outgoing' ? "text-blue-100" : "text-gray-500"
+                        )}>
+                          <span className="text-xs">
+                            {format(new Date(message.timestamp), 'HH:mm')}
+                          </span>
+                          {getStatusIcon(message.status, message.direction)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
+            </ScrollArea>
+
+            {/* Message Input */}
+            <div className="p-4 border-t bg-gray-50">
+              <div className="flex items-end space-x-2">
+                <Button variant="ghost" size="icon" className="mb-1">
+                  <Paperclip className="w-4 h-4" />
+                </Button>
+                <div className="flex-1 relative">
+                  <Input
+                    placeholder="Type a message..."
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    disabled={sendMessageMutation.isPending}
+                    className="pr-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                  <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 transform -translate-y-1/2">
+                    <Smile className="w-4 h-4" />
+                  </Button>
+                </div>
+                <Button 
+                  onClick={handleSendMessage}
+                  disabled={!messageText.trim() || sendMessageMutation.isPending}
+                  size="icon"
+                  className="bg-blue-500 hover:bg-blue-600"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+              {sendMessageMutation.isPending && (
+                <div className="flex items-center space-x-2 mt-2 text-sm text-gray-500">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-500"></div>
+                  <span>Sending...</span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </Card>
+    </div>
+  );
+}

@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
-import InboxLayout from "@/components/inbox/inbox-layout";
+import AdvancedInbox from "@/components/inbox/advanced-inbox";
 import DirectMessage from "@/components/inbox/direct-message";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -54,7 +54,7 @@ export default function Inbox() {
           subtitle="Manage your WhatsApp conversations"
         />
         <main className="flex-1 overflow-auto p-6">
-          <InboxLayout />
+          <AdvancedInbox />
           
           {/* Floating + Button */}
           <Dialog open={isDirectMessageOpen} onOpenChange={setIsDirectMessageOpen}>

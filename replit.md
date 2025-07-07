@@ -177,3 +177,8 @@ Changelog:
 - July 07, 2025. Added connected numbers dashboard with real-time status monitoring
 - July 07, 2025. Implemented session disconnect functionality to prevent conflicts between multiple numbers
 - July 07, 2025. Added session limits (5 per user) and improved session persistence
+- July 07, 2025. Completely rebuilt inbox system with AdvancedInbox component for better reliability
+- July 07, 2025. Removed broken conversation context and chat interface components
+- July 07, 2025. Implemented real-time sync with 2-second conversation updates and 1-second message updates
+- July 07, 2025. Added modern WhatsApp-style UI with avatars, status indicators, and message status icons
+- July 07, 2025. Enhanced message sending with immediate UI feedback and proper error handling
