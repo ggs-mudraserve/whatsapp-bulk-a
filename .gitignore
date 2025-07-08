@@ -14,8 +14,11 @@ vite.config.ts.*
 
 # WhatsApp session data
 auth_info_*
+auth_info_persistent_*
 .wwebjs_auth
 .wwebjs_cache
+**/session-*
+cookies.txt
 
 # Logs
 *.log
