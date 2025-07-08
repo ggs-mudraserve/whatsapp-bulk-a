@@ -4,7 +4,8 @@ import ws from "ws";
 import * as schema from "@shared/schema";
 import { createClient } from '@supabase/supabase-js';
 
-neonConfig.webSocketConstructor = ws;
+// Configure Neon database
+neonConfig.webSocketConstructor = ws as any;
 
 // Check for Supabase environment variables first
 if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
@@ -16,8 +17,12 @@ if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
   console.warn(
     "   Example: DATABASE_URL=postgresql://username:password@hostname:5432/database_name"
   );
-  // Use a placeholder URL to prevent the app from crashing during development
-  process.env.DATABASE_URL = "postgresql://placeholder:placeholder@localhost:5432/placeholder";
+  
+  if (process.env.NODE_ENV === 'development') {
+    // Use a placeholder URL for development to prevent crashes
+    console.log("Using placeholder database URL for development environment");
+    process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/postgres";
+  }
 }
 
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
