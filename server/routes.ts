@@ -11,7 +11,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Initialize WhatsApp WebSocket server
   try {
-    await persistentWhatsAppService.initializeWebSocket(server);
+    if (persistentWhatsAppService && typeof persistentWhatsAppService.initializeWebSocket === 'function') {
+      await persistentWhatsAppService.initializeWebSocket(server);
+    } else {
+      console.warn("WhatsApp service not properly initialized");
+    }
   } catch (error) {
     console.error("Error initializing WebSocket server:", error);
   }
@@ -237,7 +241,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Development mode bypass for authentication
   if (process.env.NODE_ENV === 'development') {
     app.use((req, res, next) => {
-      console.log("Development mode: bypassing authentication");
+      // Set a mock user for development
+      if (!req.user) {
+        console.log("Development mode: setting mock user");
+        (req as any).user = {
+          claims: { sub: 'dev-user-123' },
+          access_token: 'mock-token',
+          refresh_token: 'mock-refresh-token',
+          expires_at: Math.floor(Date.now() / 1000) + 3600
+        };
+        
+        // Set isAuthenticated method
+        (req as any).isAuthenticated = () => true;
+      }
+      
+      next();
+    });
+  }
+
+  return server;
+}
       // Set a mock user for development
       (req as any).user = {
         claims: { sub: 'dev-user-123' },

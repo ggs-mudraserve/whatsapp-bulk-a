@@ -9,14 +9,8 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
 // Check for REPLIT_DOMAINS and provide a fallback for development
-if (!process.env.REPLIT_DOMAINS) {
-  if (process.env.NODE_ENV === 'production') {
-    console.warn("Warning: Environment variable REPLIT_DOMAINS not provided in production");
-  } else {
-    // In development, use localhost as fallback
-    process.env.REPLIT_DOMAINS = "localhost";
-    console.log("Using localhost as REPLIT_DOMAINS in development mode");
-  }
+if (!process.env.REPLIT_DOMAINS && process.env.NODE_ENV === 'production') {
+  console.warn("Warning: Environment variable REPLIT_DOMAINS not provided in production");
 }
 
 const getOidcConfig = memoize(
@@ -76,37 +70,43 @@ async function upsertUser(
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
-  app.use(passport.initialize());
-  app.use(passport.session());
+  
+  try {
+    app.use(passport.initialize());
+    app.use(passport.session());
 
-  const config = await getOidcConfig();
+    const config = await getOidcConfig();
 
-  const verify: VerifyFunction = async (
-    tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
-    verified: passport.AuthenticateCallback
-  ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
-  };
+    const verify: VerifyFunction = async (
+      tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
+      verified: passport.AuthenticateCallback
+    ) => {
+      const user = {};
+      updateUserSession(user, tokens);
+      await upsertUser(tokens.claims());
+      verified(null, user);
+    };
 
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
-    const strategy = new Strategy(
-      {
-        name: `replitauth:${domain}`,
-        config,
-        scope: "openid email profile offline_access",
-        callbackURL: `https://${domain}/api/callback`,
-      },
-      verify,
-    );
-    passport.use(strategy);
+    if (process.env.REPLIT_DOMAINS) {
+      for (const domain of process.env.REPLIT_DOMAINS.split(",")) {
+        const strategy = new Strategy(
+          {
+            name: `replitauth:${domain}`,
+            config,
+            scope: "openid email profile offline_access",
+            callbackURL: `https://${domain}/api/callback`,
+          },
+          verify,
+        );
+        passport.use(strategy);
+      }
+    }
+
+    passport.serializeUser((user: Express.User, cb) => cb(null, user));
+    passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+  } catch (error) {
+    console.error("Error setting up authentication:", error);
   }
-
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
     // Ensure user is coming from our app, not from automatic redirect
@@ -138,6 +138,11 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // In development mode, bypass authentication
+  if (process.env.NODE_ENV === 'development') {
+    return next();
+  }
+  
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {

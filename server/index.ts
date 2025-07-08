@@ -2,14 +2,14 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
-// Add process error handlers to prevent crashes
+// Add global error handlers to prevent crashes
 process.on('unhandledRejection', (reason, promise) => {
-  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('Unhandled Rejection at:', reason);
   // Don't exit the process, just log the error
 });
 
 process.on('uncaughtException', (error) => {
-  console.log('Uncaught Exception:', error);
+  console.error('Uncaught Exception:', error);
   // Don't exit the process, just log the error
 });
 
@@ -60,10 +60,11 @@ app.use((req, res, next) => {
 
 (async () => {
   let server;
+  
   try {
     server = await registerRoutes(app);
   } catch (error) {
-    console.error("Error registering routes:", error);
+    console.error("Error registering routes:", error.message);
     server = new Server(app);
   }
 
@@ -71,7 +72,7 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    console.error('Express error handler caught:', err);
+    console.error('Express error handler caught:', err.message);
     
     if (!res.headersSent) {
       res.status(status).json({ message });

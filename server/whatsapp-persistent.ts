@@ -27,56 +27,75 @@ class PersistentWhatsAppService {
   private clients: Map<string, any> = new Map();
 
   async initializeWebSocket(httpServer: Server) {
-    this.wss = new WebSocketServer({ 
-      server: httpServer, 
-      path: '/ws-persistent' 
+    try {
+      this.wss = new WebSocketServer({ 
+        server: httpServer, 
+        path: '/ws-persistent' 
+      });
     });
 
-    console.log('Persistent WhatsApp WebSocket server initialized on /ws-persistent');
+      console.log('Persistent WhatsApp WebSocket server initialized on /ws-persistent');
 
-    // Load existing sessions asynchronously in background to not block server startup
-    setTimeout(() => {
-      this.loadPersistedSessions().catch(error => {
-        console.error('Error loading persisted sessions in background:', error);
-      });
-    }, 1000); // Wait 1 second after server starts
+      // Load existing sessions asynchronously in background to not block server startup
+      setTimeout(() => {
+        this.loadPersistedSessions().catch(error => {
+          console.error('Error loading persisted sessions in background:', error);
+        });
+      }, 1000); // Wait 1 second after server starts
 
-    this.wss.on('connection', (ws) => {
-      console.log('Persistent WhatsApp WebSocket connected');
-      
-      ws.on('message', async (message) => {
-        try {
-          const data = JSON.parse(message.toString());
-          console.log('Received persistent WebSocket message:', data);
-          await this.handleMessage(ws, data);
-        } catch (error) {
-          console.error('Persistent WebSocket error processing message:', error);
-          ws.send(JSON.stringify({ 
-            type: 'error', 
-            message: 'Invalid message format',
-            error: error.message 
-          }));
+      this.wss.on('connection', (ws) => {
+        console.log('Persistent WhatsApp WebSocket connected');
+        
+        ws.on('message', async (message) => {
+          try {
+            const data = JSON.parse(message.toString());
+            console.log('Received persistent WebSocket message:', data);
+            await this.handleMessage(ws, data);
+          } catch (error) {
+            console.error('Persistent WebSocket error processing message:', error);
+            try {
+              ws.send(JSON.stringify({ 
+                type: 'error', 
+                message: 'Invalid message format',
+                error: error.message 
+              }));
+            } catch (sendError) {
+              console.error('Error sending WebSocket error message:', sendError);
+            }
+          }
+        });
+            console.error('Error sending error message to client:', sendError);
+          }
         }
       });
 
-      ws.on('error', (error) => {
-        console.error('Persistent WebSocket error:', error);
-      });
+        ws.on('error', (error) => {
+          console.error('Persistent WebSocket error:', error);
+        });
 
-      ws.on('close', (code, reason) => {
-        console.log('Persistent WhatsApp WebSocket disconnected:', code, reason?.toString());
+        ws.on('close', (code, reason) => {
+          console.log('Persistent WhatsApp WebSocket disconnected:', code, reason?.toString());
+        });
       });
-    });
+    } catch (error) {
+      console.error('Error initializing WebSocket server:', error);
+    }
   }
 
   private async loadPersistedSessions() {
     try {
       console.log('Loading persisted WhatsApp sessions...');
-      
-      // Look for existing auth directories
-      const authDirs = fs.readdirSync(process.cwd()).filter(dir => 
-        dir.startsWith('auth_info_persistent_') && fs.statSync(dir).isDirectory()
-      );
+
+      let authDirs = [];
+      try {
+        // Look for existing auth directories
+        authDirs = fs.readdirSync(process.cwd()).filter(dir => 
+          dir.startsWith('auth_info_persistent_') && fs.statSync(dir).isDirectory()
+        );
+      } catch (error) {
+        console.error('Error reading directory for auth folders:', error);
+        return;
+      }
 
       console.log(`Found ${authDirs.length} existing auth directories`);
 
@@ -90,7 +109,12 @@ class PersistentWhatsAppService {
           let userId = 'unknown';
           
           if (fs.existsSync(metadataPath)) {
-            const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+            let metadata;
+            try {
+              metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+            } catch (error) {
+              console.error(`Error parsing metadata for session ${sessionId}:`, error);
+            }
             userId = metadata.userId || 'unknown';
           }
 
@@ -118,7 +142,7 @@ class PersistentWhatsAppService {
       this.sessions.set(sessionId, session);
 
       // Create client with persistent auth
-      const client = new Client({
+      const clientOptions = {
         authStrategy: new LocalAuth({
           clientId: sessionId,
           dataPath: authPath
@@ -143,7 +167,14 @@ class PersistentWhatsAppService {
           type: 'remote',
           remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
         }
-      });
+      };
+      
+      let client;
+      try {
+        client = new Client(clientOptions);
+      } catch (error) {
+        console.error(`Error creating client for session ${sessionId}:`, error);
+      }
 
       this.clients.set(sessionId, client);
       session.client = client;
@@ -152,8 +183,12 @@ class PersistentWhatsAppService {
       this.setupClientEvents(client, session);
 
       // Initialize the client
-      console.log(`Initializing restored client for session ${sessionId}`);
-      await client.initialize();
+      try {
+        console.log(`Initializing restored client for session ${sessionId}`);
+        await client.initialize();
+      } catch (error) {
+        console.error(`Error initializing client for session ${sessionId}:`, error);
+      }
 
     } catch (error) {
       console.error(`Failed to restore session ${sessionId}:`, error);
@@ -326,12 +361,20 @@ class PersistentWhatsAppService {
         this.sessions.set(sessionId, session);
 
         if (session.socket) {
-          session.socket.send(JSON.stringify({
-            type: 'qr_ready',
-            sessionId,
-            qrCode: qrCodeDataUrl,
-            message: 'Scan this QR code with your WhatsApp'
-          }));
+          try {
+            if (session.socket.readyState !== 1) { // WebSocket.OPEN
+              console.log(`Socket for session ${sessionId} is not open, skipping QR code send`);
+              return;
+            }
+            session.socket.send(JSON.stringify({
+              type: 'qr_ready',
+              sessionId,
+              qrCode: qrCodeDataUrl,
+              message: 'Scan this QR code with your WhatsApp'
+            }));
+          } catch (sendError) {
+            console.error(`Error sending QR code to client for session ${sessionId}:`, sendError);
+          }
         }
 
         // Broadcast to all websockets for this session
@@ -344,11 +387,16 @@ class PersistentWhatsAppService {
       } catch (error) {
         console.error('QR code generation error:', error);
         if (session.socket) {
-          session.socket.send(JSON.stringify({
-            type: 'error',
-            sessionId,
-            message: 'Failed to generate QR code'
-          }));
+          try {
+            if (session.socket.readyState !== 1) return;
+            session.socket.send(JSON.stringify({
+              type: 'error',
+              sessionId,
+              message: 'Failed to generate QR code'
+            }));
+          } catch (sendError) {
+            console.error(`Error sending error message to client for session ${sessionId}:`, sendError);
+          }
         }
       }
     });
