@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { testDatabaseConnection } from "./db";
 
 // Add global error handlers to prevent crashes
 process.on('unhandledRejection', (reason, promise) => {
@@ -59,6 +60,16 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Test database connection on startup
+  try {
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected && process.env.NODE_ENV === 'production') {
+      console.error("Database connection failed in production mode. Please check your DATABASE_URL.");
+    }
+  } catch (error) {
+    console.error("Error testing database connection:", error);
+  }
+
   let server;
   
   try {

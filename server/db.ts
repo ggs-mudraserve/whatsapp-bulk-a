@@ -43,10 +43,45 @@ if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
   }
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Create database connection with error handling
+let pool;
+try {
+  pool = new Pool({ 
+    connectionString: process.env.DATABASE_URL,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+  });
+  console.log("Database pool created successfully");
+} catch (error) {
+  console.error("Error creating database pool:", error);
+  // Create a dummy pool for development to prevent crashes
+  if (process.env.NODE_ENV === 'development') {
+    console.warn("Using dummy database pool for development");
+    pool = {
+      query: async () => ({ rows: [] }),
+      end: async () => {},
+    } as any;
+  } else {
+    throw error;
+  }
+}
+
 export const db = drizzle({ client: pool, schema });
 
 // Initialize Supabase client if credentials are available
 export const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
   : null;
+
+// Test database connection
+export async function testDatabaseConnection() {
+  try {
+    const result = await pool.query('SELECT NOW()');
+    console.log("Database connection successful:", result.rows[0]);
+    return true;
+  } catch (error) {
+    console.error("Database connection test failed:", error);
+    return false;
+  }
+}
