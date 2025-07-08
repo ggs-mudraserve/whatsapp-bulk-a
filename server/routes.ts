@@ -2,9 +2,9 @@ import express, { type Express, type Request, type Response } from "express";
 import { Server } from "http";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { storage } from "./storage";
-import { campaignExecutor } from "./campaign-executor";
-import { persistentWhatsAppService } from "./whatsapp-persistent";
-import { multiAIService } from "./ai-service";
+import { campaignExecutor } from "./campaign-executor.js";
+import { persistentWhatsAppService } from "./whatsapp-persistent.js";
+import { multiAIService } from "./ai-service.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const server = new Server(app);
@@ -12,7 +12,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize WhatsApp WebSocket server
   try {
     if (persistentWhatsAppService && typeof persistentWhatsAppService.initializeWebSocket === 'function') {
-      await persistentWhatsAppService.initializeWebSocket(server);
+      try {
+        await persistentWhatsAppService.initializeWebSocket(server);
+      } catch (error) {
+        console.error("Error initializing WhatsApp WebSocket server:", error);
+      }
     } else {
       console.warn("WhatsApp service not properly initialized");
     }
@@ -26,8 +30,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Health check endpoint
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  app.get("/api/health", async (req, res) => {
+    try {
+      // Check database connection
+      const { pool } = await import('./db.js');
+      const dbResult = await pool.query('SELECT NOW()');
+      
+      res.json({ 
+        status: "ok", 
+        timestamp: new Date().toISOString(),
+        database: {
+          connected: true,
+          timestamp: dbResult.rows[0].now
+        },
+        environment: process.env.NODE_ENV || 'development'
+      });
+    } catch (error) {
+      res.json({ 
+        status: "warning", 
+        timestamp: new Date().toISOString(),
+        database: {
+          connected: false,
+          error: error.message
+        },
+        environment: process.env.NODE_ENV || 'development'
+      });
+    }
   });
 
   // User authentication routes
@@ -246,23 +274,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Development mode bypass for authentication
   if (process.env.NODE_ENV === 'development') {
     app.use((req, res, next) => {
-      // Set a mock user for development
-      if (!req.user) {
-        console.log("Development mode: setting mock user");
-        (req as any).user = {
-          claims: { sub: 'dev-user-123' },
-          access_token: 'mock-token',
-          refresh_token: 'mock-refresh-token',
-          expires_at: Math.floor(Date.now() / 1000) + 3600
-        };
-        
-        // Set isAuthenticated method
-        (req as any).isAuthenticated = () => true;
+      try {
+        // Set a mock user for development
+        if (!req.user) {
+          (req as any).user = {
+            claims: { sub: 'dev-user-123' },
+            access_token: 'mock-token',
+            refresh_token: 'mock-refresh-token',
+            expires_at: Math.floor(Date.now() / 1000) + 3600
+          };
+          
+          // Set isAuthenticated method
+          (req as any).isAuthenticated = () => true;
+        }
+      } catch (error) {
+        console.error("Error setting mock user:", error);
       }
       
       next();
     });
   }
+
+  // Database setup status endpoint
+  app.get("/api/setup/status", async (req, res) => {
+    try {
+      const { pool } = await import('./db.js');
+      
+      // Check if tables exist
+      const result = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'users'
+        );
+      `);
+      
+      const tablesExist = result.rows[0].exists;
+      
+      res.json({
+        status: tablesExist ? "ready" : "needs_setup",
+        database: {
+          connected: true,
+          tablesExist
+        }
+      });
+    } catch (error) {
+      res.json({
+        status: "error",
+        message: error.message,
+        database: {
+          connected: false
+        }
+      });
+    }
+  });
+
+  // Run database migrations endpoint
+  app.post("/api/setup/run-migrations", async (req, res) => {
+    try {
+      const { setupDatabase } = await import('./db-setup.js');
+      const result = await setupDatabase();
+      
+      res.json({
+        success: result,
+        message: result ? "Database setup completed successfully" : "Database setup failed"
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: `Database setup error: ${error.message}`
+      });
+    }
+  });
 
   return server;
 }

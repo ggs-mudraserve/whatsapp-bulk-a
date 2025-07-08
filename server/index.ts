@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { setupDatabase } from "./db-setup";
 import { testDatabaseConnection } from "./db";
 
 // Add global error handlers to prevent crashes
@@ -60,6 +61,20 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Setup database first
+  try {
+    const dbSetupSuccess = await setupDatabase();
+    if (!dbSetupSuccess && process.env.NODE_ENV === 'production') {
+      console.error("Database setup failed in production mode. Application may not function correctly.");
+    }
+  } catch (error) {
+    console.error("Database setup error:", error);
+    if (process.env.NODE_ENV === 'production') {
+      console.error("Exiting due to database setup failure in production mode");
+      process.exit(1);
+    }
+  }
+
   // Test database connection on startup
   try {
     const dbConnected = await testDatabaseConnection();
@@ -109,12 +124,14 @@ app.use((req, res, next) => {
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = 5000;
+  const port = process.env.PORT || 5000;
   server.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`Server running on port ${port}`);
+    log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    log(`Database: ${process.env.DATABASE_URL ? 'Configured' : 'Not configured'}`);
   });
 })();

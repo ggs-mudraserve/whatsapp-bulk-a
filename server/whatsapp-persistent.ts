@@ -145,11 +145,7 @@ class PersistentWhatsAppService {
             '--disable-backgrounding-occluded-windows',
             '--disable-renderer-backgrounding'
           ],
-          executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium'
-        },
-        webVersionCache: {
-          type: 'remote',
-          remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+          headless: true
         }
       });
 
@@ -289,11 +285,7 @@ class PersistentWhatsAppService {
             '--disable-backgrounding-occluded-windows',
             '--disable-renderer-backgrounding'
           ],
-          executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium'
-        },
-        webVersionCache: {
-          type: 'remote',
-          remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+          headless: true
         }
       });
 
@@ -381,7 +373,7 @@ class PersistentWhatsAppService {
 
       // Save WhatsApp number to database
       try {
-        const { storage } = await import('./storage');
+        const { storage } = await import('./storage.js');
         const existingNumbers = await storage.getWhatsappNumbers(session.userId);
         const existingNumber = existingNumbers.find(wn => wn.phoneNumber === session.phoneNumber);
         
@@ -459,7 +451,7 @@ class PersistentWhatsAppService {
         console.log(`Received message in session ${sessionId}:`, message.body);
         
         // Save incoming message to database
-        const { storage } = await import('./storage');
+        const { storage } = await import('./storage.js');
         
         // Extract sender info
         const fromNumber = message.from.replace('@c.us', '');
@@ -545,7 +537,7 @@ class PersistentWhatsAppService {
             console.log('Full chatbot settings object:', JSON.stringify(chatbotSettings, null, 2));
             
             // Generate AI response using the AI service
-            const { multiAIService } = await import('./ai-service');
+            const { multiAIService } = await import('./ai-service.js');
             
             // Check for custom agents stored in localStorage (they would have their own API keys)
             // If no custom agent available, we need a valid API key
@@ -642,7 +634,11 @@ class PersistentWhatsAppService {
     if (this.wss) {
       this.wss.clients.forEach((client) => {
         if (client.readyState === 1) { // WebSocket.OPEN
-          client.send(JSON.stringify(data));
+          try {
+            client.send(JSON.stringify(data));
+          } catch (error) {
+            console.error('Error broadcasting to client:', error);
+          }
         }
       });
     }
@@ -753,7 +749,7 @@ class PersistentWhatsAppService {
 
     // Check if recipient is blocked
     try {
-      const { storage } = await import('./storage');
+      const { storage } = await import('./storage.js');
       const contacts = await storage.getContacts(session.userId);
       const phoneNumber = to.replace(/[@c.us]/g, '');
       const contact = contacts.find(c => c.phoneNumber.replace('+', '') === phoneNumber);
@@ -928,11 +924,7 @@ class PersistentWhatsAppService {
               '--disable-backgrounding-occluded-windows',
               '--disable-renderer-backgrounding'
             ],
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium'
-          },
-          webVersionCache: {
-            type: 'remote',
-            remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+            headless: true
           }
         });
 
@@ -995,7 +987,10 @@ class PersistentWhatsAppService {
           }
         }, 30000);
 
-        client.initialize();
+        client.initialize().catch(error => {
+          console.error(`Error initializing client for session ${sessionId}:`, error);
+          reject(error);
+        });
       });
 
     } catch (error) {

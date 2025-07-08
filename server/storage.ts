@@ -34,7 +34,7 @@ import { db } from "./db";
 import { eq, desc, and, count, sql, inArray } from "drizzle-orm";
 
 // Import Supabase storage implementation
-import { supabaseStorage } from './storage-supabase';
+import { supabaseStorage } from './storage-supabase.js';
 
 export interface IStorage {
   // User operations - mandatory for Replit Auth
@@ -536,6 +536,18 @@ export class DatabaseStorage implements IStorage {
 }
 
 // Determine which storage implementation to use based on environment
-export const storage = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
-  ? supabaseStorage
-  : new DatabaseStorage();
+export const storage = (() => {
+  try {
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+      console.log("Using Supabase storage implementation");
+      return supabaseStorage;
+    } else {
+      console.log("Using database storage implementation");
+      return new DatabaseStorage();
+    }
+  } catch (error) {
+    console.error("Error initializing storage:", error);
+    console.log("Falling back to database storage implementation");
+    return new DatabaseStorage();
+  }
+})();

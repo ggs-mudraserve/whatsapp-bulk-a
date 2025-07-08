@@ -26,6 +26,11 @@ import { IStorage } from './storage';
 export class SupabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
+    if (!supabase) {
+      console.error('Supabase client not initialized');
+      return undefined;
+    }
+    
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -41,6 +46,10 @@ export class SupabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized');
+    }
+    
     const { data, error } = await supabase
       .from('users')
       .upsert([{
@@ -59,6 +68,10 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<void> {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized');
+    }
+    
     const { error } = await supabase
       .from('users')
       .delete()
