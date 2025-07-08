@@ -13,6 +13,17 @@ process.on('uncaughtException', (error) => {
   // Don't exit the process, just log the error
 });
 
+// Add process error handlers to prevent crashes
+process.on('unhandledRejection', (reason, promise) => {
+  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process, just log the error
+});
+
+process.on('uncaughtException', (error) => {
+  console.log('Uncaught Exception:', error);
+  // Don't exit the process, just log the error
+});
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -48,7 +59,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  let server;
+  try {
+    server = await registerRoutes(app);
+  } catch (error) {
+    console.error("Error registering routes:", error);
+    server = new Server(app);
+  }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -56,6 +73,11 @@ app.use((req, res, next) => {
 
     console.error('Express error handler caught:', err);
     
+    if (!res.headersSent) {
+      res.status(status).json({ message });
+    }
+    
+    // Don't re-throw the error to prevent process crash
     if (!res.headersSent) {
       res.status(status).json({ message });
     }

@@ -8,9 +8,15 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-// Check for REPLIT_DOMAINS, but provide a fallback for development
-if (!process.env.REPLIT_DOMAINS && process.env.NODE_ENV === 'production') {
-  console.warn("Warning: Environment variable REPLIT_DOMAINS not provided in production");
+// Check for REPLIT_DOMAINS and provide a fallback for development
+if (!process.env.REPLIT_DOMAINS) {
+  if (process.env.NODE_ENV === 'production') {
+    console.warn("Warning: Environment variable REPLIT_DOMAINS not provided in production");
+  } else {
+    // In development, use localhost as fallback
+    process.env.REPLIT_DOMAINS = "localhost";
+    console.log("Using localhost as REPLIT_DOMAINS in development mode");
+  }
 }
 
 const getOidcConfig = memoize(

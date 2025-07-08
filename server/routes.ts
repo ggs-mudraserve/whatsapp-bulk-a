@@ -10,7 +10,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const server = new Server(app);
 
   // Initialize WhatsApp WebSocket server
-  await persistentWhatsAppService.initializeWebSocket(server);
+  try {
+    await persistentWhatsAppService.initializeWebSocket(server);
+  } catch (error) {
+    console.error("Error initializing WebSocket server:", error);
+  }
 
   // Set up authentication if not in development mode
   if (process.env.NODE_ENV !== 'development') {
@@ -233,12 +237,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Development mode bypass for authentication
   if (process.env.NODE_ENV === 'development') {
     app.use((req, res, next) => {
+      console.log("Development mode: bypassing authentication");
       // Set a mock user for development
       (req as any).user = {
         claims: { sub: 'dev-user-123' },
         access_token: 'mock-token',
         refresh_token: 'mock-refresh-token',
-        expires_at: Date.now() + 3600000
+        expires_at: Math.floor(Date.now() / 1000) + 3600
       };
       
       // Set isAuthenticated method
