@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, AlertCircle, CheckCircle, Download } from "lucide-react";
-import type { ContactGroup } from "@shared/schema";
+import type { ContactGroup } from "../../../../shared/types";
 
 interface ContactData {
   name: string;

@@ -12,7 +12,7 @@ import BulkUpload from "@/components/contacts/bulk-upload";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Users, CheckCircle, Tags, Ban, Upload } from "lucide-react";
-import type { Contact } from "@shared/schema";
+import type { Contact } from "../../../shared/types";
 
 export default function Contacts() {
   const { toast } = useToast();

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Calendar, Clock, Upload, RefreshCw, AlertCircle } from "lucide-react";
-import type { ContactGroup } from "@shared/schema";
+import type { ContactGroup } from "../../../../shared/types";
 
 interface DailyUploadSchedulerProps {
   onScheduleCreated?: () => void;

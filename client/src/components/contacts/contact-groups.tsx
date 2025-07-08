@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Trash2, Edit, Users, Plus, Upload } from "lucide-react";
-import type { ContactGroup, Contact } from "@shared/schema";
+import type { ContactGroup, Contact } from "../../../../shared/types";
 
 interface ContactGroupsProps {
   contacts: Contact[];

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Search, MessageCircle, Phone, User } from "lucide-react";
-import type { Conversation, Message } from "@shared/schema";
+import type { Conversation, Message } from "../../../../shared/types";
 
 export default function SimpleInbox() {
   const { toast } = useToast();

@@ -71,6 +71,32 @@ export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
   
+  // Add simple login for development mode
+  if (process.env.NODE_ENV === 'development') {
+    app.get("/api/login", async (req, res) => {
+      // Create/upsert the development user in the database
+      try {
+        await storage.upsertUser({
+          id: 'dev-user-123',
+          email: 'developer@example.com', 
+          firstName: 'Dev',
+          lastName: 'User',
+          profileImageUrl: null,
+        });
+        res.redirect('/');
+      } catch (error) {
+        console.error('Error creating dev user:', error);
+        res.redirect('/');
+      }
+    });
+    
+    app.get("/api/logout", (req, res) => {
+      res.redirect('/');
+    });
+    
+    return; // Skip Replit auth setup in development
+  }
+  
   try {
     app.use(passport.initialize());
     app.use(passport.session());
@@ -125,21 +151,59 @@ export async function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  app.get("/api/logout", (req, res) => {
-    req.logout(() => {
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
-      );
+  app.get("/api/logout", async (req, res) => {
+    req.logout(async () => {
+      if (process.env.NODE_ENV === 'development') {
+        res.redirect('/');
+      } else {
+        try {
+          const config = await getOidcConfig();
+          res.redirect(
+            client.buildEndSessionUrl(config, {
+              client_id: process.env.REPL_ID!,
+              post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+            }).href
+          );
+        } catch (error) {
+          res.redirect('/');
+        }
+      }
     });
   });
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  // In development mode, bypass authentication
+  // In development mode, provide a mock user
   if (process.env.NODE_ENV === 'development') {
+    // Always ensure mock user exists and create it in database if needed
+    try {
+      await storage.upsertUser({
+        id: 'dev-user-123',
+        email: 'developer@example.com', 
+        firstName: 'Dev',
+        lastName: 'User',
+        profileImageUrl: null,
+      });
+      
+      req.user = {
+        claims: {
+          sub: 'dev-user-123',
+          email: 'developer@example.com',
+          first_name: 'Dev',
+          last_name: 'User'
+        }
+      };
+    } catch (error) {
+      console.error('Error ensuring dev user:', error);
+      req.user = {
+        claims: {
+          sub: 'dev-user-123',
+          email: 'developer@example.com',
+          first_name: 'Dev',
+          last_name: 'User'
+        }
+      };
+    }
     return next();
   }
   

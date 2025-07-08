@@ -20,7 +20,7 @@ import type {
   InsertAntiBlockingSettings,
   ChatbotSettings,
   InsertChatbotSettings,
-} from "@shared/schema";
+} from "../shared/types";
 import { IStorage } from './storage';
 
 export class SupabaseStorage implements IStorage {

@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X } from "lucide-react";
-import { insertTemplateSchema } from "@shared/schema";
+import { insertTemplateSchema } from "../../../../shared/validation";
 
 const templateFormSchema = insertTemplateSchema.extend({
   name: z.string().min(1, "Template name is required"),

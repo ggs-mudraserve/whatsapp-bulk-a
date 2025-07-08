@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { insertCampaignSchema } from "@shared/schema";
+import { insertCampaignSchema } from "../../../../shared/validation";
 
 const campaignFormSchema = insertCampaignSchema.extend({
   name: z.string().min(1, "Campaign name is required"),

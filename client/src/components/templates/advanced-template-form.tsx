@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Plus, X, Eye, EyeOff, Globe, Tag, Clock, Variable, Upload, Image, Video, FileText, Music } from "lucide-react";
-import { insertTemplateSchema } from "@shared/schema";
+import { insertTemplateSchema } from "../../../../shared/validation";
 
 const templateFormSchema = insertTemplateSchema.extend({
   name: z.string().min(1, "Template name is required").max(100, "Name too long"),

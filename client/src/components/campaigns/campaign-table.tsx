@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Eye, Pause, Play, Trash2, Filter } from "lucide-react";
 import CampaignControls from "./campaign-controls";
-import type { Campaign } from "@shared/schema";
+import type { Campaign } from "../../../../shared/types";
 
 interface CampaignTableProps {
   campaigns: Campaign[];

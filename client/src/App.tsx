@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
+import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Inbox from "@/pages/inbox";
 import Campaigns from "@/pages/campaigns";
@@ -41,9 +42,10 @@ function Router() {
     <Switch>
       {!isAuthenticated ? (
         <>
-          <Route path="/" component={Landing} />
-          <Route path="/login" component={() => { window.location.href = "/api/login"; return null; }} />
-          <Route component={Landing} />
+          <Route path="/" component={Login} />
+          <Route path="/login" component={Login} />
+          <Route path="/landing" component={Landing} />
+          <Route component={Login} />
         </>
       ) : (
         <>

@@ -1,7 +1,8 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
+import { Server } from "http";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { setupDatabase } from "./db-setup";
 import { testDatabaseConnection } from "./db";
 
 // Add global error handlers to prevent crashes
@@ -61,28 +62,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Setup database first
-  try {
-    const dbSetupSuccess = await setupDatabase();
-    if (!dbSetupSuccess && process.env.NODE_ENV === 'production') {
-      console.error("Database setup failed in production mode. Application may not function correctly.");
-    }
-  } catch (error) {
-    console.error("Database setup error:", error);
-    if (process.env.NODE_ENV === 'production') {
-      console.error("Exiting due to database setup failure in production mode");
-      process.exit(1);
-    }
-  }
-
-  // Test database connection on startup
+  // Test Supabase connection on startup
   try {
     const dbConnected = await testDatabaseConnection();
     if (!dbConnected && process.env.NODE_ENV === 'production') {
-      console.error("Database connection failed in production mode. Please check your DATABASE_URL.");
+      console.error("Supabase connection failed in production mode. Please check your SUPABASE_URL and SUPABASE_ANON_KEY.");
     }
   } catch (error) {
-    console.error("Error testing database connection:", error);
+    console.error("Error testing Supabase connection:", error);
   }
 
   let server;
@@ -90,7 +77,8 @@ app.use((req, res, next) => {
   try {
     server = await registerRoutes(app);
   } catch (error) {
-    console.error("Error registering routes:", error.message);
+    console.error("Error registering routes:", error instanceof Error ? error.message : String(error));
+    // Fallback to basic HTTP server if registerRoutes fails
     server = new Server(app);
   }
 
@@ -124,14 +112,10 @@ app.use((req, res, next) => {
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = process.env.PORT || 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  const port = parseInt(process.env.PORT || "5000", 10);
+  server.listen(port, "localhost", () => {
     log(`Server running on port ${port}`);
     log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    log(`Database: ${process.env.DATABASE_URL ? 'Configured' : 'Not configured'}`);
+    log(`Database: ${process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? 'Supabase Configured' : 'Supabase Not configured'}`);
   });
 })();

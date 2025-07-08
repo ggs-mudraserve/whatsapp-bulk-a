@@ -1,9 +1,6 @@
 import { storage } from "./storage";
 import { persistentWhatsAppService } from "./whatsapp-persistent";
-import { db } from "./db";
-import { campaigns } from "@shared/schema";
-import { eq } from "drizzle-orm";
-import type { Campaign, Contact } from "@shared/schema";
+import type { Campaign, Contact } from "../shared/types";
 
 interface CampaignExecutionContext {
   campaign: Campaign;
@@ -25,27 +22,20 @@ export class CampaignExecutor {
     console.log(`Starting campaign execution for ID: ${campaignId}`);
     
     try {
-      // Get campaign directly from database
-      const campaignResults = await db
-        .select()
-        .from(campaigns)
-        .where(eq(campaigns.id, campaignId))
-        .limit(1);
+      // Get campaign from storage
+      const campaigns = await storage.getCampaigns('dev-user-123'); // Use dev user for now
+      const campaign = campaigns.find(c => c.id === campaignId);
       
-      if (campaignResults.length === 0) {
+      if (!campaign) {
         throw new Error(`Campaign ${campaignId} not found`);
       }
       
-      const campaign = campaignResults[0];
-      console.log(`Found campaign: ${campaign.name}, status: ${campaign.status}, user: ${campaign.userId}`);
+      console.log(`Found campaign: ${campaign.name}, status: ${campaign.status}, user: ${campaign.user_id}`);
 
       if (campaign.status !== 'draft' && campaign.status !== 'scheduled') {
         console.log(`Campaign ${campaignId} status check failed: ${campaign.status}`);
         // Update status to draft if it's in a bad state
-        await db
-          .update(campaigns)
-          .set({ status: 'draft' })
-          .where(eq(campaigns.id, campaignId));
+        await storage.updateCampaign(campaignId, { status: 'draft' });
         console.log(`Reset campaign ${campaignId} status to draft`);
       }
 

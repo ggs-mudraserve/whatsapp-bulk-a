@@ -9,15 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { insertContactSchema } from "@shared/schema";
+import { insertContactSchema } from "../../../../shared/validation";
 
-const contactFormSchema = insertContactSchema.extend({
-  name: z.string().min(1, "Name is required"),
-  phoneNumber: z.string().min(1, "Phone number is required"),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
-});
-
-type ContactFormData = z.infer<typeof contactFormSchema>;
+type ContactFormData = z.infer<typeof insertContactSchema>;
 
 interface ContactFormProps {
   onSuccess: () => void;
@@ -27,13 +21,12 @@ export default function ContactForm({ onSuccess }: ContactFormProps) {
   const { toast } = useToast();
 
   const form = useForm<ContactFormData>({
-    resolver: zodResolver(contactFormSchema),
+    resolver: zodResolver(insertContactSchema),
     defaultValues: {
       name: "",
       phoneNumber: "",
       email: "",
       tags: [],
-      status: "active",
       notes: "",
     },
   });

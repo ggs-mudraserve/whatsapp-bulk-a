@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Send, MessageSquare, Users, Clock, Settings, Upload, FileText } from "lucide-react";
-import type { ContactGroup, Contact, WhatsappNumber, Template } from "@shared/schema";
+import type { ContactGroup, Contact, WhatsappNumber, Template } from "../../../../shared/types";
 
 interface BulkMessageFormProps {
   onSuccess?: () => void;

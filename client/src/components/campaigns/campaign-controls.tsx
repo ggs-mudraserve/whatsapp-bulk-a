@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Play, Pause, Square, MoreHorizontal, Clock, CheckCircle, XCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import type { Campaign } from "@shared/schema";
+import type { Campaign } from "../../../../shared/types";
 
 interface CampaignControlsProps {
   campaign: Campaign;

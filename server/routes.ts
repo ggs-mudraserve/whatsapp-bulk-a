@@ -61,7 +61,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
   app.get("/api/auth/user", isAuthenticated, async (req, res) => {
     try {
-      const user = await storage.getUser((req.user as any).claims?.sub);
+      const userId = (req.user as any)?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -93,6 +97,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/whatsapp-numbers", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).claims?.sub;
+      const { phoneNumber, displayName, isActive, sessionId } = req.body;
+      
+      if (!phoneNumber) {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+
+      const whatsappNumber = await storage.createWhatsappNumber({
+        phoneNumber,
+        displayName: displayName || phoneNumber,
+        userId,
+        status: 'disconnected',
+        sessionData: sessionId ? { sessionId } : null,
+        webhookUrl: null
+      });
+      
+      res.json(whatsappNumber);
+    } catch (error) {
+      console.error("Error creating WhatsApp number:", error);
+      res.status(500).json({ message: "Failed to create WhatsApp number" });
+    }
+  });
+
+  app.put("/api/whatsapp-numbers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+      
+      const whatsappNumber = await storage.updateWhatsappNumber(id, updates);
+      res.json(whatsappNumber);
+    } catch (error) {
+      console.error("Error updating WhatsApp number:", error);
+      res.status(500).json({ message: "Failed to update WhatsApp number" });
+    }
+  });
+
+  app.delete("/api/whatsapp-numbers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteWhatsappNumber(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting WhatsApp number:", error);
+      res.status(500).json({ message: "Failed to delete WhatsApp number" });
+    }
+  });
+
   // WhatsApp active sessions
   app.get("/api/whatsapp/active-sessions", isAuthenticated, async (req, res) => {
     try {
@@ -114,7 +167,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate QR code for WhatsApp connection
+  // Generate QR code for WhatsApp connection (persistent)
+  app.post("/api/whatsapp/qr-persistent", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).claims?.sub;
+      const sessionId = `persistent_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      
+      const qrCode = await persistentWhatsAppService.createDirectSession(sessionId, userId);
+      
+      if (qrCode) {
+        res.json({
+          success: true,
+          sessionId,
+          qrCode,
+          message: "QR code generated successfully",
+          expiresIn: 120 // 2 minutes
+        });
+      } else {
+        res.json({
+          success: false,
+          message: "Failed to generate QR code. You may already have an active session."
+        });
+      }
+    } catch (error) {
+      console.error("Error generating persistent QR code:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to generate QR code: " + error.message 
+      });
+    }
+  });
+
+  // Generate QR code for WhatsApp connection (direct)
   app.post("/api/whatsapp/generate-qr-direct", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).claims?.sub;
@@ -181,6 +265,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/templates", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { name, content, category, mediaType, mediaUrl, mediaCaption, ctaButtons, tags } = req.body;
+      
+      if (!name || !content) {
+        return res.status(400).json({ message: "Name and content are required" });
+      }
+
+      console.log('Creating template with data:', {
+        name,
+        content: content?.substring?.(0, 50) + '...',
+        category: category || 'general',
+        userId
+      });
+
+      const template = await storage.createTemplate({
+        name,
+        content,
+        category: category || 'general',
+        mediaType: mediaType || null,
+        mediaUrl: mediaUrl || null,
+        mediaCaption: mediaCaption || null,
+        ctaButtons: ctaButtons || [],
+        tags: tags || [],
+        userId
+      });
+      
+      console.log('Template created successfully:', template.id);
+      res.json(template);
+    } catch (error) {
+      console.error("Error creating template:", error);
+      res.status(500).json({ 
+        message: "Failed to create template",
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  });
+
+  app.put("/api/templates/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name, content, category, mediaType, mediaUrl, mediaCaption, ctaButtons, tags } = req.body;
+      
+      const template = await storage.updateTemplate(id, {
+        name,
+        content,
+        category,
+        mediaType,
+        mediaUrl,
+        mediaCaption,
+        ctaButtons,
+        tags
+      });
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating template:", error);
+      res.status(500).json({ message: "Failed to update template" });
+    }
+  });
+
+  app.delete("/api/templates/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteTemplate(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting template:", error);
+      res.status(500).json({ message: "Failed to delete template" });
+    }
+  });
+
   // Campaigns
   app.get("/api/campaigns", isAuthenticated, async (req, res) => {
     try {
@@ -218,6 +379,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching messages:", error);
       res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/messages", isAuthenticated, async (req, res) => {
+    try {
+      const { conversationId, content, messageType, direction, messageId } = req.body;
+      
+      if (!conversationId || !content || !direction) {
+        return res.status(400).json({ message: "ConversationId, content, and direction are required" });
+      }
+
+      const message = await storage.createMessage({
+        conversationId,
+        content,
+        messageType: messageType || 'text',
+        direction,
+        messageId: messageId || null
+      });
+      
+      res.json(message);
+    } catch (error) {
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: "Failed to create message" });
+    }
+  });
+
+  // Conversations
+  app.post("/api/conversations", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).claims?.sub;
+      const { contactName, contactPhone, whatsappNumberId, contactId } = req.body;
+      
+      if (!contactName || !contactPhone) {
+        return res.status(400).json({ message: "Contact name and phone are required" });
+      }
+
+      const conversation = await storage.createConversation({
+        userId,
+        contactName,
+        contactPhone,
+        whatsappNumberId: whatsappNumberId || null,
+        contactId: contactId || null
+      });
+      
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      res.status(500).json({ message: "Failed to create conversation" });
     }
   });
 
