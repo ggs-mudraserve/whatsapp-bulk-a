@@ -261,20 +261,3 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   return server;
 }
-      // Set a mock user for development
-      (req as any).user = {
-        claims: { sub: 'dev-user-123' },
-        access_token: 'mock-token',
-        refresh_token: 'mock-refresh-token',
-        expires_at: Math.floor(Date.now() / 1000) + 3600
-      };
-      
-      // Set isAuthenticated method
-      (req as any).isAuthenticated = () => true;
-      
-      next();
-    });
-  }
-
-  return server;
-}
